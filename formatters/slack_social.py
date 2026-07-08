@@ -39,7 +39,7 @@ def generate_social_brief(push_data):
 
         Body Paragraph: [body paragraph]
 
-        Stack: Only include a technology in Stack if it is directly named in the commit message, or if a file extension or filename makes it unambiguous (e.g. app.py = Python, index.jsx = React, Dockerfile = Docker). Never infer a specific framework or database from generic filenames like database.py or models.py — these only confirm a concept, not a specific tool.
+        Stack: Only include a technology in Stack if it is directly named in the commit message, or if a file extension or filename makes it unambiguous (e.g. app.py = Python, index.jsx = React, Dockerfile = Docker, etc). Never infer a specific framework or database from generic filenames like database.py or models.py — these only confirm a concept, not a specific tool. Also, folder names alone don't qualify as Stack entries, only file extensions and explicitly named technologies do
 
         Concepts: always include this field. If no concepts are explicitly obvious or stated, infer them from file names and commit messages. When in doubt, include rather than omit.
         Example: "Concepts: User Authentication · Database Management · Data Modeling"
