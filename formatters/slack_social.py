@@ -1,5 +1,4 @@
 import json
-import sys
 from openai import OpenAI
 from dotenv import load_dotenv
 
@@ -71,6 +70,7 @@ def generate_social_brief(push_data):
 # Test
 
 if __name__ == "__main__":
+    import sys
     sys.path.insert(0, '.')
     from payload_parser import parse_push_event
     with open("sample_payload.json") as f:

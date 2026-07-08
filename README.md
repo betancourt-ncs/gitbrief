@@ -5,7 +5,7 @@
 ![OpenAI](https://img.shields.io/badge/OpenAI-gpt--4o--mini-412991?logo=openai&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
-**gitbrief** is an event-driven automation tool that listens for your GitHub push events and uses an LLM to generate a professional, shareable brief delievered to Slack automatically.
+**gitbrief** is an event-driven automation tool that listens for your GitHub push events and uses an LLM to generate a professional, shareable brief delivered to Slack automatically.
 
 The workflow: a developer pushes to GitHub, and gitbrief automatically produces a professional, human-readable brief of what was built, what stack was used, and what concepts were applied. The output is formatted for real social audiences: LinkedIn, Twitter/X, forums, communities, or any online/social media outlets.
 
@@ -164,7 +164,7 @@ uvicorn server:app --reload
 **2. Start ngrok**
 
 ```bash
-ngrok http --url=safeguard-circus-mortality.ngrok-free.dev 8000
+ngrok http --url=your-static-domain.ngrok-free.app 8000
 ```
 
 **3. Configure the GitHub webhook**
