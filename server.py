@@ -2,8 +2,13 @@ from fastapi import FastAPI, Request
 from payload_parser import parse_push_event
 from formatters.slack_social import generate_social_brief
 from slack import post_to_slack
+from db.base import Base, engine
+import db.models
 
 app = FastAPI()
+
+# Creating the db tables
+Base.metadata.create_all(engine)
 
 
 @app.post("/webhook")
