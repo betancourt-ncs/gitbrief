@@ -39,8 +39,16 @@ async def github_endpoint(request: Request, db: Session = Depends(get_db)):
 
     push_data = parse_push_event(payload)
 
+    slack_social_url = tenant.social_webhook_url
+    if not slack_social_url:
+        # 200 OK return
+        return {
+            "status": "skipped",
+            "reason": "no Social webhook configured"
+        }
+
     brief = generate_social_brief(push_data)
 
-    post_to_slack(brief)
+    post_to_slack(brief, slack_social_url)
 
-    return {"status": "ok"}
+    return {"status": "posted"}
