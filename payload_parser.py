@@ -14,6 +14,7 @@ def parse_push_event(payload):
         "repo": payload["repository"]["name"],
         "pusher": payload["pusher"]["name"],
         "branch": payload["ref"].split("/")[-1],
+        "default_branch": payload["repository"]["default_branch"],
         "commits": commit_data
     }
     return push_data
