@@ -9,6 +9,7 @@ import db.models  # pylint: disable=unused-import
 from db.crud import get_tenant
 from sqlalchemy.orm import Session
 from auth import verify_signature
+from filters import is_social_eligible, is_direct_eligible
 
 app = FastAPI()
 
@@ -40,8 +41,10 @@ async def github_endpoint(request: Request, db: Session = Depends(get_db)):
     if not verified_signature:
         raise HTTPException(status_code=401, detail="Access denied")
 
-    # Parsing raw payload
-    push_data = parse_push_event(payload)
+    # Parsing raw payload and event type retrieval
+    event_type = request.headers.get("X-GitHub-Event")
+    parsed_data = parse_push_event(payload)
+    parsed_data['event_type'] = event_type
 
     # Webhook lookup and brief format assignment
     slack_social_url = tenant.social_webhook_url
@@ -49,16 +52,17 @@ async def github_endpoint(request: Request, db: Session = Depends(get_db)):
 
     # Social
     social_delivered = False
-    if slack_social_url:
+    if is_social_eligible(tenant, parsed_data):
         brief = ""
         try:
-            brief = generate_social_brief(push_data)
+            brief = generate_social_brief(parsed_data)
         except Exception as e:
             print(f"Error type: {type(e)}")
             print(f"Detail:'{e}' happened when attempting to generate the social brief for {tenant}")
 
         if brief:
             try:
+                assert slack_social_url is not None
                 post_to_slack(brief, slack_social_url)
                 social_delivered = True
             except Exception as e:
@@ -68,17 +72,18 @@ async def github_endpoint(request: Request, db: Session = Depends(get_db)):
 
     # Direct
     direct_delivered = False
-    if slack_direct_url:
+    if is_direct_eligible(tenant):
         brief = ""
 
         try:
-            brief = generate_direct_brief(push_data)
+            brief = generate_direct_brief(parsed_data)
         except Exception as e:
             print(f"Error type: {type(e)}")
             print(f"Detail:'{e}' happened when attempting to generate the direct brief for {tenant}")
 
         if brief:
             try:
+                assert slack_direct_url is not None
                 post_to_slack(brief, slack_direct_url)
                 direct_delivered = True
             except Exception as e:

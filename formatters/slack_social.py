@@ -9,11 +9,11 @@ with open("formatters/social_prompt.txt", "r", encoding="utf-8") as f:
     instructions = f.read()
 
 
-def generate_social_brief(input_data):
+def generate_social_brief(parsed_data):
     response = client.responses.create(
         model="gpt-4o-mini",
         instructions=instructions,
-        input=json.dumps(input_data),
+        input=json.dumps(parsed_data),
         temperature=1.0,
         max_output_tokens=300
     )
