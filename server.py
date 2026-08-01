@@ -52,7 +52,9 @@ async def github_endpoint(request: Request, db: Session = Depends(get_db)):
 
     # Social
     social_delivered = False
-    if is_social_eligible(tenant, parsed_data):
+    social_eligible = is_social_eligible(tenant, parsed_data)
+
+    if social_eligible:
         brief = ""
         try:
             brief = generate_social_brief(parsed_data)
@@ -72,7 +74,9 @@ async def github_endpoint(request: Request, db: Session = Depends(get_db)):
 
     # Direct
     direct_delivered = False
-    if is_direct_eligible(tenant):
+    direct_eligible = is_direct_eligible(tenant)
+
+    if direct_eligible:
         brief = ""
 
         try:
@@ -93,18 +97,18 @@ async def github_endpoint(request: Request, db: Session = Depends(get_db)):
 
     # Return status
     if social_delivered == True:
-        social_status = "posted"
-    elif not slack_social_url:
-        social_status = "skipped"
+        social_status = {"status": "posted"}
+    elif not social_eligible:
+        social_status = {"status": "skipped"}
     else:
-        social_status = "failed"
+        social_status = {"status": "failed"}
 
     if direct_delivered == True:
-        direct_status = "posted"
-    elif not slack_direct_url:
-        direct_status = "skipped"
+        direct_status = {"status": "posted"}
+    elif not direct_eligible:
+        direct_status = {"status": "skipped"}
     else:
-        direct_status = "failed"
+        direct_status = {"status": "failed"}
 
     return {
         "social_status": social_status,
