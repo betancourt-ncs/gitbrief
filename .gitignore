@@ -1,6 +1,7 @@
 .venv
 __pycache__
 .env
-sample_payload.json
+sample_push_payload.json
 webhook_test.py
 test_slack.py
+sample_pr_payload.json

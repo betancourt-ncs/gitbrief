@@ -1,6 +1,7 @@
 import json
 
 
+# Push
 def parse_push_event(payload):
 
     commit_data = [
@@ -18,6 +19,11 @@ def parse_push_event(payload):
         "commits": commit_data
     }
     return push_data
+
+
+# Pull Request
+def parse_pr_event(payload):
+    pass
 
 
 # test
