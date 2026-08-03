@@ -23,7 +23,21 @@ def parse_push_event(payload):
 
 # Pull Request
 def parse_pr_event(payload):
-    pass
+
+    pr = payload["pull_request"]
+
+    pr_data = {
+        "title": pr["title"],
+        "body": pr["body"] or "No description provided",
+        "commits": pr["commits"],
+        "additions": pr["additions"],
+        "deletions": pr["deletions"],
+        "changed_files": pr["changed_files"],
+        "username": pr["user"]["login"],
+        "repo": pr["head"]["repo"]["full_name"]
+    }
+
+    return pr_data
 
 
 # test
