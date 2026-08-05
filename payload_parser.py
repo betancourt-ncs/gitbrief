@@ -43,7 +43,7 @@ def parse_pr_event(payload):
 # test
 if __name__ == "__main__":
 
-    with open("sample_payload.json") as f:
+    with open("sample_pr_payload.json") as f:
         payload = json.load(f)
 
-    print(parse_push_event(payload))
+    print(parse_pr_event(payload))

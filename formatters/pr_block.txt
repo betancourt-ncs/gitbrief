@@ -1,0 +1,184 @@
+# This event: merged pull request
+
+A merged pull request is a completed unit of work. Unlike a single push, it represents a feature, fix, or change that has been finished, reviewed, and landed on the main branch. The story you are telling is the story of something that is now done.
+
+## Working from the developer's description
+
+The `body` field contains the developer's own explanation of their work.
+
+**When the description is substantive:** treat it as your primary source and your guide for tone and structure. Reframe it for a social audience — keep the developer's voice, message, and emphasis intact. The only changes you should make are (a) clarifying technical terms for non-technical readers, and (b) restructuring so it reads naturally as a social media post rather than as a technical PR description. Do not add bells and whistles. Do not change what the work is or inflate its significance.
+
+**When the description reads "No description provided" or is vague:** work from the title and the scale signals instead. Write less. Do not compensate for missing information by inventing it.
+
+## Reading the title
+
+The title usually establishes what kind of work this was. Many developers use conventional prefixes — `feat:` (new feature), `fix:` (bug fix), `refactor:` (restructuring without behavior change), `docs:`, `chore:`, `perf:` (performance). Use these to identify the nature of the work and reflect it accurately.
+
+If the title is vague or unprefixed, infer the nature of the work from the input as a whole. If you still cannot determine it confidently, describe what happened plainly rather than guessing at a category.
+
+## Scale signals — internal only
+
+This event provides commit count, lines added, lines deleted, and files changed. **Never state these numbers in the output.** They exist only to calibrate how much post the work justifies:
+
+- Small (few commits, small line counts, 1–2 files): 2–3 sentence body
+- Medium: 3–5 sentences
+- Large (many commits, substantial line counts, many files): up to 7 sentences, still concise
+
+## Evidence for Stack and Concepts
+
+For this event, both Stack and Concepts are drawn from the `title` and `body` only — the developer's own words. There are no file names or extensions available in a pull request payload, so there is nothing to infer a technology from beyond what the developer explicitly wrote.
+
+## GitHub link
+
+`Check out my project: github.com/[repo]`
+
+# Context
+
+You will receive:
+- `title` — the developer's PR title
+- `body` — the developer's PR description, or "No description provided"
+- `commits` — number of commits (internal signal only)
+- `additions` — lines added (internal signal only)
+- `deletions` — lines removed (internal signal only)
+- `changed_files` — number of files changed (internal signal only)
+- `username` — the developer's GitHub username (for the link only)
+- `repo` — owner/repo, e.g. `betancourt-ncs/gitbrief` (for the link only)
+
+# Examples
+
+<example>
+<input>
+title: feat: add per-tenant signing secrets and HMAC verification
+body: Each tenant now gets their own signing secret generated at provisioning. The webhook endpoint looks up the tenant first, then verifies the signature against that tenant's secret instead of one global key. This means a leaked secret only affects one tenant instead of everyone.
+commits: 7
+additions: 214
+deletions: 43
+changed_files: 5
+repo: betancourt-ncs/gitbrief
+</input>
+<output>
+🔐 I just implemented unique authentication verification in my gitbrief project!
+
+Each user now gets their own authenticated signing secret when they're set up, rather than sharing one global key across the whole system. Basically, when the trigger (a webhook) arrives, the server first identifies which user it belongs to, then verifies the request signature against that specific user's signing secret, confirming the request is authentic before anything else runs. The practical difference is the blast radius: if one user's secret is ever exposed, it affects only them and not the rest of the userbase.
+
+With per-user authentication in place, a compromised credential can no longer be used to send forged requests on behalf of any other user, substantially improving my app's security.
+
+Concepts: Multi-Tenancy · HMAC Authentication · Blast Radius Containment
+
+Check out my project: github.com/betancourt-ncs/gitbrief
+</output>
+</example>
+
+<example>
+<input>
+title: fix: correct timezone handling in digest scheduler
+body: No description provided
+commits: 1
+additions: 6
+deletions: 4
+changed_files: 1
+repo: john-smith/daily-report
+</input>
+<output>
+🕐 I just fixed timezone handling in my daily-report project's digest scheduler!
+
+The scheduler that decides when digests go out was handling timezones incorrectly, which meant delivery times could land at the wrong hour, depending on where things were being calculated from. I'm happy to share that that's not the case anymore.
+
+With the timezone logic fixed, scheduled digests go out at the hour they're actually meant to. No more scheduling headaches.
+
+Check out my project: github.com/john-smith/daily-report
+</output>
+</example>
+
+<example>
+<input>
+title: update stuff
+body: No description provided
+commits: 2
+additions: 18
+deletions: 11
+changed_files: 3
+repo: betancourt-ncs/gitbrief
+</input>
+<output>
+🔧 I just pushed a round of small updates across my gitbrief project!
+
+This one was more of general housekeeping. I made a handful of small changes spread across a few files. No groundbreaking feature this time, just incremental cleanup.
+
+With these changes, the codebase is a little tidier than it was.
+
+Check out my project: github.com/betancourt-ncs/gitbrief
+</output>
+</example>
+
+<example>
+<input>
+title: feat: add multi-format brief delivery with independent Slack destinations
+body: This PR adds the direct brief format alongside the existing social format. Each tenant can now configure a separate Slack webhook for direct-format briefs, independent from their social webhook. I built a new formatter (slack_direct.py) using the OpenAI Responses API with FastAPI orchestrating the request. Both formats are generated and delivered independently in the same request, wrapped in separate try/except blocks, so a failure generating or posting one format never blocks the other from succeeding. I also added a branch eligibility check for the social format specifically: social briefs only go out for pushes to the repository's default branch, while direct briefs go out regardless of branch, since teammates following a feature branch still want visibility into in-progress work. Tenants can now have social only, direct only, both, or neither configured, and the pipeline handles all four cases without special-casing any of them.
+commits: 11
+additions: 340
+deletions: 58
+changed_files: 9
+repo: betancourt-ncs/gitbrief
+</input>
+<output>
+📦 I just added multi-format brief delivery with independent Slack destinations in my gitbrief project!
+
+I've introduced a new option for delivering briefs in two formats: a direct format alongside the existing social format. Each user can now set up a separate Slack webhook for these direct briefs, so they can receive updates that are specific to their needs without interfering with the social notifications. I created a new formatter using the OpenAI Responses API and organized the delivery with FastAPI, ensuring that updates for both formats are sent out independently.
+
+If there's an issue with one format, it won't prevent the other from being delivered successfully. Additionally, I've implemented checks to ensure social briefs only send for updates to the main branch, while direct briefs go out regardless of the branch, providing visibility into ongoing work.
+
+With this update, tenants have more flexible options for how and when they receive notifications, enhancing how teams stay informed about project developments.
+
+Stack: FastAPI · OpenAI Responses API
+Concepts: Multi-Format Delivery · Independent Webhooks · Branch Management
+
+Check out my project: github.com/betancourt-ncs/gitbrief
+</output>
+</example>
+
+<example>
+<input>
+title: perf: add caching layer and retry logic for external API calls
+body: External API calls were happening on every request, which was slow and made the app fragile whenever the upstream service had a hiccup. Added a caching layer so repeated calls within a short window reuse the previous result instead of hitting the network again. Also added retry logic with exponential backoff for calls that do fail, so a brief outage upstream doesn't immediately surface as an error to the user. Connection pooling was already in place but wasn't being reused correctly across requests, which I fixed as part of this.
+commits: 5
+additions: 96
+deletions: 31
+changed_files: 4
+repo: betancourt-ncs/gitbrief
+</input>
+<output>
+⚡ I just made my app faster and more reliable when talking to outside services in my gitbrief project!
+
+External calls to other services used to happen on every single request, which slowed things down and made the app fragile whenever that outside service had a hiccup. Now, repeated calls within a short window reuse the previous result instead of hitting the network again. If a call does fail, the app automatically retries with increasing wait times instead of immediately showing an error. I also fixed how existing connections were being reused, so they're now shared efficiently across requests instead of going to waste.
+
+With this in place, temporary issues on the other end no longer immediately turn into errors for anyone using the app.
+
+Concepts: Caching · Retry Logic with Backoff · Connection Pooling · Fault Tolerance
+
+Check out my project: github.com/betancourt-ncs/gitbrief
+</output>
+</example>
+
+<example>
+<input>
+title: refactor: split the monolithic user service into three focused modules
+body: The user service had grown to handle authentication, profile management, and notification preferences all in one file, which made it hard to change one without risking the others. Split it into three separate modules, each with a single responsibility, communicating through clearly defined interfaces instead of shared internal state.
+commits: 6
+additions: 120
+deletions: 95
+changed_files: 8
+repo: arthur-morgan/task-manager
+</input>
+<output>
+🔄 I just reorganized my user service into three focused modules in my task-manager project!
+
+The user service had become quite complex, handling authentication, profile management, and notification preferences all in one place. This made making changes riskier since a tweak in one area could unintentionally affect another. I've now separated it into three distinct modules, each dedicated to a single responsibility. These modules interact through clearly defined interfaces instead of relying on shared internal state, allowing for safer and more maintainable code.
+
+With this modular design, I can now implement updates or fixes in one area without worrying about disrupting the others.
+
+Concepts: Separation of Concerns · Modularity · Single Responsibility
+
+Check out my project: github.com/arthur-morgan/task-manager
+</output>
+</example>
