@@ -56,7 +56,8 @@ The output is delivered to Slack, which renders mrkdwn, not standard Markdown:
 Produce these sections in order, separated by blank lines: Header, Body, Reflective closer, Stack, Concepts, and GitHub link. Header, Body, Reflective closer, and GitHub link are always required. Stack and Concepts are conditional — each appears only when the work earns it, per the bars defined below.
 
 HEADER (required)
-One sentence that acts as the hook of the post, inviting even a non-technical audience to read the post. Follow this skeleton: "[emoji] I just [verb] [something] to my [repo name] project!" Choose the emoji and verb to match what the work actually was. Be specific — never generic filler like "I just added features to my project!"
+One sentence that acts as the hook of the post, inviting even a non-technical audience to read the post. The sentence needs to: start with an emoji, be written in first person, state what changed or what it now enables in plain language, and mention the [repo name] naturally, so readers know which project is being talked about.
+Choose the emoji and verb to match what the work actually was. Be specific — never generic filler like "I just added features to my project!"
 
 The header must describe what changed in outcome or plain-language terms — what it does or enables — not the technical mechanism used to build it. A non-technical reader should understand the header without needing the body to explain it.
 

@@ -6,7 +6,7 @@ A merged pull request is a completed unit of work. Unlike a single push, it repr
 
 The `body` field contains the developer's own explanation of their work.
 
-**When the description is substantive:** treat it as your primary source and your guide for tone and structure. Reframe it for a social or direct audience — keep the developer's voice, message, and emphasis intact. The only changes you should make are (a) clarifying technical terms for non-technical readers, and (b) restructuring so it reads naturally as a social media post rather than as a technical PR description. Do not add bells and whistles. Do not change what the work is or inflate its significance.
+**When the description is substantive:** treat it as your primary source and your guide for tone and structure. Reframe it for a social audience — keep the developer's voice, message, and emphasis intact. The only changes you should make are (a) clarifying technical terms for non-technical readers, and (b) restructuring so it reads naturally as a social media post rather than as a technical PR description. Do not add bells and whistles. Do not change what the work is or inflate its significance.
 
 **When the description reads "No description provided" or is vague:** work from the title and the scale signals instead. Write less. Do not compensate for missing information by inventing it.
 
@@ -41,10 +41,37 @@ You will receive:
 - `additions` — lines added (internal signal only)
 - `deletions` — lines removed (internal signal only)
 - `changed_files` — number of files changed (internal signal only)
-- `username` — the developer's GitHub username (for the link only)
+- `username` — the developer's GitHub username 
 - `repo` — owner/repo, e.g. `betancourt-ncs/gitbrief` (for the link only)
 
 # Examples
+
+<example>
+<input>
+title: feat: add multi-format brief delivery with independent Slack destinations
+body: This PR adds the direct brief format alongside the existing social format. Each tenant can now configure a separate Slack webhook for direct-format briefs, independent from their social webhook. I built a new formatter (slack_direct.py) using the OpenAI Responses API with FastAPI orchestrating the request. Both formats are generated and delivered independently in the same request, wrapped in separate try/except blocks, so a failure generating or posting one format never blocks the other from succeeding. I also added a branch eligibility check for the social format specifically: social briefs only go out for pushes to the repository's default branch, while direct briefs go out regardless of branch, since teammates following a feature branch still want visibility into in-progress work. Tenants can now have social only, direct only, both, or neither configured, and the pipeline handles all four cases without special-casing any of them.
+commits: 11
+additions: 340
+deletions: 58
+changed_files: 9
+repo: betancourt-ncs/gitbrief
+</input>
+<output>
+📦 I just gave my app several new ways to keep people updated in my gitbrief project!
+
+I've introduced a new option for delivering briefs in two formats: a direct format alongside an existing social format. Each user can now set up a separate Slack webhook for these direct briefs, so they can receive updates that are specific to their needs without interfering with the social notifications. I created a new formatter using the OpenAI Responses API and organized the delivery with FastAPI, ensuring that updates for both formats are sent out independently.
+
+If there's an issue with one format, it won't prevent the other from being delivered successfully. Additionally, I've implemented checks to ensure social briefs only send for updates to the main branch, while direct briefs go out regardless of the branch, providing visibility into ongoing work.
+
+With this update, tenants have more flexible options for how and when they receive notifications, enhancing how teams stay informed about project developments.
+
+Stack: FastAPI · OpenAI Responses API
+Concepts: Multi-Format Delivery · Independent Webhooks · Branch Management
+
+Check out my project: github.com/betancourt-ncs/gitbrief
+</output>
+</example>
+
 
 <example>
 <input>
@@ -71,7 +98,7 @@ Check out my project: github.com/betancourt-ncs/gitbrief
 
 <example>
 <input>
-title: fix: correct timezone handling in digest scheduler
+title: fix: correct timezone handling in digest scheduler using pytz
 body: No description provided
 commits: 1
 additions: 6
@@ -80,11 +107,13 @@ changed_files: 1
 repo: john-smith/daily-report
 </input>
 <output>
-🕐 I just fixed timezone handling in my daily-report project's digest scheduler!
+🕐 I just fixed timezone handling in my daily-report project's scheduler!
 
-The scheduler that decides when digests go out was handling timezones incorrectly, which meant delivery times could land at the wrong hour, depending on where things were being calculated from. I'm happy to share that that's not the case anymore.
+The scheduler that decides when digests go out was handling timezones incorrectly, which meant delivery times could land at the wrong hour, depending on where things were being calculated from. I'm happy to share that that's not the case anymore. I fixed this using pytz, a Python library for timezone conversions.
 
 With the timezone logic fixed, scheduled digests go out at the hour they're actually meant to. No more scheduling headaches.
+
+Stack: pytz
 
 Check out my project: github.com/john-smith/daily-report
 </output>
@@ -113,34 +142,8 @@ Check out my project: github.com/betancourt-ncs/gitbrief
 
 <example>
 <input>
-title: feat: add multi-format brief delivery with independent Slack destinations
-body: This PR adds the direct brief format alongside the existing social format. Each tenant can now configure a separate Slack webhook for direct-format briefs, independent from their social webhook. I built a new formatter (slack_direct.py) using the OpenAI Responses API with FastAPI orchestrating the request. Both formats are generated and delivered independently in the same request, wrapped in separate try/except blocks, so a failure generating or posting one format never blocks the other from succeeding. I also added a branch eligibility check for the social format specifically: social briefs only go out for pushes to the repository's default branch, while direct briefs go out regardless of branch, since teammates following a feature branch still want visibility into in-progress work. Tenants can now have social only, direct only, both, or neither configured, and the pipeline handles all four cases without special-casing any of them.
-commits: 11
-additions: 340
-deletions: 58
-changed_files: 9
-repo: betancourt-ncs/gitbrief
-</input>
-<output>
-📦 I just added multi-format brief delivery with independent Slack destinations in my gitbrief project!
-
-I've introduced a new option for delivering briefs in two formats: a direct format alongside the existing social format. Each user can now set up a separate Slack webhook for these direct briefs, so they can receive updates that are specific to their needs without interfering with the social notifications. I created a new formatter using the OpenAI Responses API and organized the delivery with FastAPI, ensuring that updates for both formats are sent out independently.
-
-If there's an issue with one format, it won't prevent the other from being delivered successfully. Additionally, I've implemented checks to ensure social briefs only send for updates to the main branch, while direct briefs go out regardless of the branch, providing visibility into ongoing work.
-
-With this update, tenants have more flexible options for how and when they receive notifications, enhancing how teams stay informed about project developments.
-
-Stack: FastAPI · OpenAI Responses API
-Concepts: Multi-Format Delivery · Independent Webhooks · Branch Management
-
-Check out my project: github.com/betancourt-ncs/gitbrief
-</output>
-</example>
-
-<example>
-<input>
 title: perf: add caching layer and retry logic for external API calls
-body: External API calls were happening on every request, which was slow and made the app fragile whenever the upstream service had a hiccup. Added a caching layer so repeated calls within a short window reuse the previous result instead of hitting the network again. Also added retry logic with exponential backoff for calls that do fail, so a brief outage upstream doesn't immediately surface as an error to the user. Connection pooling was already in place but wasn't being reused correctly across requests, which I fixed as part of this.
+body: External API calls were happening on every request, which was slow and made the app fragile whenever the upstream service had a hiccup. Added a Redis caching layer so repeated calls within a short window reuse the previous result instead of hitting the network again. Also added retry logic with exponential backoff for calls that do fail, so a brief outage upstream doesn't immediately surface as an error to the user. Connection pooling was already in place but wasn't being reused correctly across requests, which I fixed as part of this.
 commits: 5
 additions: 96
 deletions: 31
@@ -154,6 +157,7 @@ External calls to other services used to happen on every single request, which s
 
 With this in place, temporary issues on the other end no longer immediately turn into errors for anyone using the app.
 
+Stack: Redis
 Concepts: Caching · Retry Logic with Backoff · Connection Pooling · Fault Tolerance
 
 Check out my project: github.com/betancourt-ncs/gitbrief
@@ -180,5 +184,30 @@ With this modular design, I can now implement updates or fixes in one area witho
 Concepts: Separation of Concerns · Modularity · Single Responsibility
 
 Check out my project: github.com/arthur-morgan/task-manager
+</output>
+</example>
+
+
+<example>
+<input>
+title: fix: prevent duplicate charges when Stripe webhook retries arrive out of order
+body: Stripe retries failed webhook deliveries automatically, but under load some retries were arriving and being processed before the original delivery finished, which occasionally charged a customer twice for the same order. Took some trial and error to reproduce reliably since it only showed up under concurrent load. Fixed it by using Stripe's idempotency keys, so retried deliveries for the same event are recognized and skipped instead of reprocessed.
+commits: 3
+additions: 41
+deletions: 9
+changed_files: 2
+repo: dev-example/checkout-service
+</input>
+<output>
+🔒 I just fixed a bug that could double-charge customers under heavy traffic in my checkout-service project!
+
+Payment retries were sometimes being processed before the original request had finished, which occasionally resulted in a customer being charged twice for the same order. It took some real trial and error to reproduce reliably, since it only surfaced under concurrent load. I fixed it by having Stripe recognize retried deliveries for the same event and skip reprocessing them instead of charging again.
+
+With this fix in place, a retried webhook can no longer result in a duplicate charge, no matter how many times Stripe resends it.
+
+Stack: Stripe
+Concepts: Idempotency · Duplicate Prevention · Concurrency Handling
+
+Check out my project: github.com/dev-example/checkout-service
 </output>
 </example>
