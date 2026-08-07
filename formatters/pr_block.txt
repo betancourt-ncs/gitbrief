@@ -6,7 +6,7 @@ A merged pull request is a completed unit of work. Unlike a single push, it repr
 
 The `body` field contains the developer's own explanation of their work.
 
-**When the description is substantive:** treat it as your primary source and your guide for tone and structure. Reframe it for a social audience — keep the developer's voice, message, and emphasis intact. The only changes you should make are (a) clarifying technical terms for non-technical readers, and (b) restructuring so it reads naturally as a social media post rather than as a technical PR description. Do not add bells and whistles. Do not change what the work is or inflate its significance.
+**When the description is substantive:** treat it as your primary source and your guide for tone and structure. Reframe it for a social or direct audience — keep the developer's voice, message, and emphasis intact. The only changes you should make are (a) clarifying technical terms for non-technical readers, and (b) restructuring so it reads naturally as a social media post rather than as a technical PR description. Do not add bells and whistles. Do not change what the work is or inflate its significance.
 
 **When the description reads "No description provided" or is vague:** work from the title and the scale signals instead. Write less. Do not compensate for missing information by inventing it.
 
