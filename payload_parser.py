@@ -34,7 +34,9 @@ def parse_pr_event(payload):
         "deletions": pr["deletions"],
         "changed_files": pr["changed_files"],
         "username": pr["user"]["login"],
-        "repo": pr["head"]["repo"]["full_name"]
+        "repo": pr["head"]["repo"]["full_name"],
+        "head_branch": pr["head"]["ref"],
+        "base_branch": pr["base"]["ref"]
     }
 
     return pr_data

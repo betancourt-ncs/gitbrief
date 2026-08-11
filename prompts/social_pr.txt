@@ -43,6 +43,8 @@ You will receive:
 - `changed_files` — number of files changed (internal signal only)
 - `username` — the developer's GitHub username 
 - `repo` — owner/repo, e.g. `betancourt-ncs/gitbrief` (for the link only)
+- `head_branch` - contains the new code updates' branch. Ignore for this format's output
+- `base_branch` - destination/target branch. Ignore for this format's output
 
 # Examples
 
@@ -61,7 +63,7 @@ repo: betancourt-ncs/gitbrief
 
 I've introduced a new option for delivering briefs in two formats: a direct format alongside an existing social format. Each user can now set up a separate Slack webhook for these direct briefs, so they can receive updates that are specific to their needs without interfering with the social notifications. I created a new formatter using the OpenAI Responses API and organized the delivery with FastAPI, ensuring that updates for both formats are sent out independently.
 
-If there's an issue with one format, it won't prevent the other from being delivered successfully. Additionally, I've implemented checks to ensure social briefs only send for updates to the main branch, while direct briefs go out regardless of the branch, providing visibility into ongoing work.
+If there's an issue with one format, it won't prevent the other from being delivered successfully. Lastly, I've implemented checks to ensure social briefs only send for updates to the main branch, while direct briefs go out regardless of the branch, providing visibility into ongoing work.
 
 With this update, tenants have more flexible options for how and when they receive notifications, enhancing how teams stay informed about project developments.
 

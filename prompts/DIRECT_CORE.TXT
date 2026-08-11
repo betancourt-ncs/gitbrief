@@ -48,7 +48,7 @@ The brief is delivered to Slack through the `text` field of an incoming webhook,
 - Bold is `*single asterisks*`. Never use `**double asterisks**`; they render literally.
 - Inline code uses `` `backticks` `` (this works normally).
 - Do not use Markdown headers (`#`), bullet characters, or link syntax `[text](url)`.
-- Plain prose. At most one line break, and only if the event genuinely contains two unrelated pieces of work.
+- Plain prose by default. Use a line break only where the event section below specifies a fixed output structure, or where the event genuinely contains two unrelated pieces of work.
 - Bold the developer's name using `*asterisks*`. Italicize the repo name using `_underscores_`.
 - Begin every brief with the event emoji specified in the event section below. That emoji is a fixed category marker, not decoration — it does not conflict with the ban on celebration emoji above, and no other emoji should appear anywhere in the brief.
 
