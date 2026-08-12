@@ -43,8 +43,8 @@ You will receive:
 - `changed_files` — number of files changed (internal signal only)
 - `username` — the developer's GitHub username 
 - `repo` — owner/repo, e.g. `betancourt-ncs/gitbrief` (for the link only)
-- `head_branch` - contains the new code updates' branch. Ignore for this format's output
-- `base_branch` - destination/target branch. Ignore for this format's output
+- `head_branch` - the branch the work was done on. Ignore for this format's output
+- `base_branch` - the branch it was merged into. Ignore for this format's output
 
 # Examples
 

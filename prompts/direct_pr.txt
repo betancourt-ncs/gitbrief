@@ -1,0 +1,129 @@
+# This event: merged pull request
+
+A merged pull request is a completed unit of work. Where a push is work in motion, a merged PR is work that has landed — reviewed, finished, and now part of the branch it merged into. For the people in this channel, this is the update that says a change is done and live in the codebase they share.
+
+Begin the brief with 🦈.
+
+## Output structure
+
+This event has a fixed three-part structure. Produce it exactly:
+
+Header line:
+*[username]*'s pull request was merged into `[base_branch]` from `[head_branch]` in _[repo]_!
+
+Body:
+Narrative body — what the work actually does and why it matters. Remember to articulate the substance of what changed in the context of the project in an accurate manner.
+
+Volume: +[additions] / −[deletions] across [changed_files] files
+Commits: [commits]
+
+The header line and the volume/commits lines are fixed — every field in them is required. Only the narrative body varies in length.
+
+
+## Working from the developer's description
+
+The `title` and `body` are the only human-written explanation available for this event. There are no commit messages, no file names, and no diffs in this payload — the developer's own words are your entire evidence base.
+
+**When the description is substantive**, it is your primary source. Reframe it into an explanation for a teammate — keep what the developer said the work does, but do not simply reproduce their PR description verbatim. A PR body often explains implementation reasoning at length; the brief explains what changed and what it means for someone else working in this codebase.
+
+**When the description reads "No description provided" or is too vague to explain the work**, say so plainly. State what the title indicates, note explicitly that the description does not explain the substance of the change, and stop. Do not infer a feature from the title alone, do not infer from the repository's name or purpose, and do not use the volume numbers to guess at what changed — a large diff tells you how much moved, never what it was.
+
+## Reading the title
+
+The title usually establishes what kind of work this was. Many developers use conventional prefixes — `feat:` (new feature), `fix:` (bug fix), `refactor:` (restructuring without behavior change), `docs:`, `chore:`, `perf:` (performance). Use these to identify the nature of the work and reflect it accurately.
+
+Only describe this PR as a fix when the title or body explicitly signals one.
+
+## Length
+
+Size signals for this event are commit count, lines added, lines deleted, and files changed. These are real integers rather than estimates, which makes them a better size signal than a push's commit count — but they measure how much moved, not how much was accomplished. Use them to calibrate the body, and let the substance of the description override them when the two disagree.
+
+- Small (few commits, small line counts, 1–2 files): 1–2 sentence body
+- Typical feature or fix: 2–4 sentence body
+- Large (many commits, substantial line counts, many files): up to 5 sentences. Never more.
+
+A vague description produces a short body regardless of how large the numbers are.
+
+# Context
+
+You receive a single JSON object describing one merged pull request:
+
+- `title` — the developer's PR title (string)
+- `body` — the developer's PR description (string), or "No description provided"
+- `commits` — number of commits in the PR (integer)
+- `additions` — lines added (integer)
+- `deletions` — lines removed (integer)
+- `changed_files` — number of files changed (integer)
+- `username` — the developer who opened the PR and did the work (string)
+- `repo` — owner/repo, e.g. `betancourt-ncs/gitbrief` (string)
+- `head_branch` — the branch the work was done on (string)
+- `base_branch` — the branch it was merged into (string)
+
+**Hard limitation on what you know:** this payload contains no file names, no commit messages, and no diffs. You know how much changed as numbers, and you know what the developer said about it in the title and body. You do not know which files were touched or what any code does. Never name a file, never claim knowledge of the implementation, and never let the size numbers stand in for a description of the work.
+
+# Examples
+
+<pr_data id="1">
+{'title': 'feat: add per-tenant signing secrets and HMAC verification', 'body': "Each tenant now gets their own signing secret generated at provisioning. The webhook endpoint looks up the tenant first, then verifies the signature against that tenant's secret instead of one global key. This means a leaked secret only affects one tenant instead of everyone.", 'username': 'tony-stark', 'repo': 'tony-stark/gitbrief', 'head_branch': 'feature/per-tenant-secrets', 'base_branch': 'main', 'commits': 7, 'additions': 214, 'deletions': 43, 'changed_files': 5}
+</pr_data>
+
+<brief id="1">
+🦈 *tony-stark*'s pull request was merged into `main` from `feature/per-tenant-secrets` in _gitbrief_!
+
+This PR allows each tenant to now have their own signing secret rather than sharing one global key. Incoming webhooks resolve the tenant first, then verify the signature against that tenant's secret using HMAC verification. Consequently, a leaked secret compromises only one tenant instead of the entire user base.
+
+Volume: +214 / −43 across 5 files
+Commits: 7
+</brief>
+
+<pr_data id="2">
+{'title': 'fix: prevent duplicate charges when Stripe webhook retries arrive out of order', 'body': "Stripe retries failed webhook deliveries automatically, but under load some retries were arriving and being processed before the original delivery finished, which occasionally charged a customer twice for the same order. Fixed it by using Stripe's idempotency keys, so retried deliveries for the same event are recognized and skipped instead of reprocessed.", 'username': 'dev-example', 'repo': 'dev-example/checkout-service', 'head_branch': 'fix/duplicate-charges', 'base_branch': 'main', 'commits': 3, 'additions': 41, 'deletions': 9, 'changed_files': 2}
+</pr_data>
+
+<brief id="2">
+🦈 *dev-example*'s pull request was merged into `main` from `fix/duplicate-charges` in _checkout-service_!
+
+Fixes a bug where Stripe webhook retries arriving out of order under load could charge a customer twice for the same order. Retries now carry idempotency keys, so a duplicate delivery for an event already processed is correctly recognized and skipped.
+
+Volume: +41 / −9 across 2 files
+Commits: 3
+</brief>
+
+<pr_data id="3">
+{'title': 'update stuff', 'body': 'No description provided', 'username': 'jason-bourne', 'repo': 'jason-bourne/budget-tracker', 'head_branch': 'misc-updates', 'base_branch': 'main', 'commits': 2, 'additions': 18, 'deletions': 11, 'changed_files': 3}
+</pr_data>
+
+<brief id="3">
+🦈 *jason-bourne*'s pull request was merged into `main` from `misc-updates` in _budget-tracker_!
+
+Neither the title nor the description provide enough information about what this PR changes.
+
+Volume: +18 / −11 across 3 files
+Commits: 2
+</brief>
+
+<pr_data id="4">
+{'title': 'split the monolithic user service into three focused modules', 'body': 'The user service had grown to handle authentication, profile management, and notification preferences all in one file, which made it hard to change one without risking the others. Split it into three separate modules, each with a single responsibility, communicating through clearly defined interfaces instead of shared internal state.', 'username': 'arthur-morgan', 'repo': 'arthur-morgan/task-manager', 'head_branch': 'user-service', 'base_branch': 'develop', 'commits': 6, 'additions': 120, 'deletions': 95, 'changed_files': 8}
+</pr_data>
+
+<brief id="4">
+🦈 *arthur-morgan*'s pull request was merged into `develop` from `user-service` in _task-manager_!
+
+The user service previously handled authentication, profile management, and notification preferences in a single file, which made any change to one of them pose a risk to the others. It is now structured as three modules with one responsibility each, communicating through defined interfaces rather than shared internal state. Behavior remains unchanged, this is purely a structural split to demonstrate separation of concerns and clean module management.
+
+Volume: +120 / −95 across 8 files
+Commits: 6
+</brief>
+
+<pr_data id="5">
+{'title': 'feat: add multi-format brief delivery with independent Slack destinations', 'body': 'This PR adds the direct brief format alongside the existing social format. Each tenant can now configure a separate Slack webhook for direct-format briefs, independent from their social webhook. Both formats are generated and delivered independently in the same request, wrapped in separate try/except blocks, so a failure generating or posting one format never blocks the other from succeeding. I also added a branch eligibility check for the social format specifically: social briefs only go out for pushes to the default branch, while direct briefs go out regardless of branch. Tenants can now have social only, direct only, both, or neither configured, and the pipeline handles all four cases without special-casing any of them.', 'username': 'betancourt-ncs', 'repo': 'betancourt-ncs/gitbrief', 'head_branch': 'feature/direct-format', 'base_branch': 'main', 'commits': 11, 'additions': 340, 'deletions': 58, 'changed_files': 9}
+</pr_data>
+
+<brief id="5">
+🦈 *betancourt-ncs*'s pull request was merged into `main` from `feature/direct-format` in _gitbrief_!
+
+The PR adds a second brief format alongside the existing social one, with its own Slack destination configured per tenant. The two formats generate and deliver independently, so one failing does not block the other. Social briefs are now gated to the default branch, while direct briefs go out from any branch. A tenant can have either format, both, or neither configured without the pipeline special-casing any of those combinations.
+
+Volume: +340 / −58 across 9 files
+Commits: 11
+</brief>
