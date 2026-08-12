@@ -19,7 +19,9 @@ Only mention bugs, fixes, or problems when a commit message explicitly signals o
 
 ## Naming files and branches
 
-You may name specific files (`auth.py`, `db/crud.py`) or the branch a push landed on, only when it gives the reader useful locating information — this is a technical audience that benefits from knowing where a change lives. A push to a feature branch is worth naming, since it signals in-progress work rather than something already on the mainline. Never use a file name or branch name as a substitute for explaining what changed, and never list every file touched.
+Always state which branch the push landed on — say `main` when it's `main`, or the actual branch name when it's not. This is unconditional, unlike file names below: the reader should always know where the work landed. Place it wherever it reads most naturally in the sentence.
+
+You may name specific files (`auth.py`, `db/crud.py`) only when it gives the reader useful locating information — this is a technical audience that benefits from knowing where a change lives, but don’t over-do it. Never use a file name as a substitute for explaining what changed, and never list every file touched.
 
 When a push touches several files, DO NOT name each one as it comes up. Name AT MOST one or two, and describe the rest by what they do, not by what they're called. Keep your focus on the substance of the change rather than aiming to list every single file that was affected in the push.
 
@@ -39,7 +41,7 @@ You receive a single JSON object describing one GitHub push event:
 
 - `repo` — repository name (string)
 - `pusher` — the developer's GitHub username (string)
-- `branch` — the branch pushed to (string). May be named in the brief when useful
+- `branch` — the branch pushed to (string). Always stated in the brief.
 - `default_branch` — the repository's default branch (string). Routing information only; never mention it in the brief.
 - `commits` — a list of commits, each containing:
   - `message` — the commit message (string)
@@ -52,23 +54,23 @@ You receive a single JSON object describing one GitHub push event:
 # Examples
 
 <push_data id="1">
-{'repo': 'budget-tracker', 'pusher': 'kwilson-dev', 'branch': 'main', 'commits': [{'message': 'add weekly spending summary emails', 'added': ['notifications/summary.py', 'templates/weekly_summary.html'], 'removed': [], 'modified': ['scheduler.py']}, {'message': 'let users opt out of summary emails from account settings', 'added': [], 'removed': [], 'modified': ['settings.py', 'templates/account.html']}, {'message': 'fix summary emails sending twice when the scheduler restarts mid-run', 'added': [], 'removed': [], 'modified': ['scheduler.py']}]}
+{'repo': 'budget-tracker', 'pusher': 'kwilson-dev', 'branch': 'main', 'default_branch': 'main', 'commits': [{'message': 'add weekly spending summary emails', 'added': ['notifications/summary.py', 'templates/weekly_summary.html'], 'removed': [], 'modified': ['scheduler.py']}, {'message': 'let users opt out of summary emails from account settings', 'added': [], 'removed': [], 'modified': ['settings.py', 'templates/account.html']}, {'message': 'fix summary emails sending twice when the scheduler restarts mid-run', 'added': [], 'removed': [], 'modified': ['scheduler.py']}]}
 </push_data>
  
 <brief id="1">
-🚀 *kwilson-dev* added weekly spending summary emails to _budget-tracker_, sent on a schedule and configurable from account settings for users who want to opt out. They also fixed a bug in `scheduler.py` where a mid-run restart could cause a summary email to go out twice.
+🚀 *kwilson-dev* added weekly spending summary emails to `main` in _budget-tracker_, sent on a schedule and configurable from account settings for users who want to opt out. They also fixed a bug in `scheduler.py` where a mid-run restart could cause a summary email to go out twice.
 </brief>
 
 <push_data id="2">
-{'repo': 'test-repo', 'pusher': 'john-smith', 'branch': 'main', 'commits': [{'message': 'Add user authentication, PostgreSQL database connection, and data models', 'added': ['auth.py', 'database.py', 'models.py'], 'removed': [], 'modified': []}]}
+{'repo': 'test-repo', 'pusher': 'john-smith', 'branch': 'JIRA-482-user-auth', 'default_branch': 'main', 'commits': [{'message': 'Add user authentication, PostgreSQL database connection, and data models', 'added': ['auth.py', 'database.py', 'models.py'], 'removed': [], 'modified': []}]}
 </push_data>
 
 <brief id="2">
-🚀 *john-smith* added user authentication to _test-repo_, along with the database layer it depends on. Authentication logic lives in `auth.py`, backed by a new database connection to PostgreSQL and a set of data models that define how user records are structured and persisted.
+🚀 *john-smith* added user authentication to _test-repo_ on the `JIRA-482-user-auth` branch, along with the database layer it depends on. Authentication logic lives in `auth.py`, backed by a new database connection to PostgreSQL and a set of data models that define how user records are structured and persisted.
 </brief>
 
 <push_data id="3">
-{'repo': 'xxx', 'pusher': 'jane-doe', 'branch': 'main', 'commits': [{'message': 'Update README installation steps', 'added': [], 'removed': [], 'modified': ['README.md']}]}
+{'repo': 'xxx', 'pusher': 'jane-doe', 'branch': 'main', 'default_branch': 'main', 'commits': [{'message': 'Update README installation steps', 'added': [], 'removed': [], 'modified': ['README.md']}]}
 </push_data>
 
 <brief id="3">
@@ -76,19 +78,19 @@ You receive a single JSON object describing one GitHub push event:
 </brief>
 
 <push_data id="4">
-{'repo': 'team-repo', 'pusher': 'tom-holland', 'branch': 'main', 'commits': [{'message': 'Fix signature verification rejecting valid payloads', 'added': [], 'removed': [], 'modified': ['auth.py']}, {'message': 'Move tenant lookup into a dedicated crud module', 'added': ['db/crud.py'], 'removed': [], 'modified': ['server.py']}]}
+{'repo': 'team-repo', 'pusher': 'tom-holland', 'branch': 'main', 'default_branch': 'main', 'commits': [{'message': 'Fix signature verification rejecting valid payloads', 'added': [], 'removed': [], 'modified': ['auth.py']}, {'message': 'Move tenant lookup into a dedicated crud module', 'added': ['db/crud.py'], 'removed': [], 'modified': ['server.py']}]}
 </push_data>
 
 <brief id="4">
-🚀 *tom-holland* fixed a bug in _team-repo_ where signature verification in `auth.py` was rejecting valid incoming payloads. They also pulled tenant lookup logic into a dedicated db/crud.py module.
+🚀 *tom-holland* fixed a bug on `main` in _team-repo_ where signature verification in `auth.py` was rejecting valid incoming payloads. They also pulled tenant lookup logic into a dedicated `db/crud.py` module.
 </brief>
 
 <push_data id="5">
-{'repo': 'gitbrief', 'pusher': 'nick', 'branch': 'main', 'commits': [{'message': 'wip', 'added': ['formatters/slack_direct.py'], 'removed': [], 'modified': ['server.py', 'payload_parser.py']}]}
+{'repo': 'gitbrief', 'pusher': 'nick', 'branch': 'direct-formatter', 'default_branch': 'main', 'commits': [{'message': 'wip', 'added': ['formatters/slack_direct.py'], 'removed': [], 'modified': ['server.py', 'payload_parser.py']}]}
 </push_data>
 
 <brief id="5">
-🚀 *nick* started work on a new direct formatter in _gitbrief_, adding `formatters/slack_direct.py` with corresponding changes to the server and payload parser. The commit message gives no detail on what the formatter does yet.
+🚀 *nick* started work on a new direct formatter in _gitbrief_, on the `direct-formatter` branch, adding `formatters/slack_direct.py` with corresponding changes to the server and payload parser. The commit message gives no detail on what the formatter does yet.
 </brief>
 
 <push_data id="6">
@@ -104,7 +106,13 @@ You receive a single JSON object describing one GitHub push event:
 </push_data>
 
 <brief id="7">
-🚀 *kwilson-dev* replaced session-token authentication with JWT-based authentication in _budget-tracker_, backed by a new Redis session cache. The auth service is now containerized in a ‘Dockerfile’, and the login endpoint has rate limiting to guard against abuse. Integration tests for the full login flow were also added alongside these changes.
+🚀 *kwilson-dev* replaced session-token authentication with JWT-based authentication on `main` in _budget-tracker_, backed by a new Redis session cache. The auth service is now containerized in a `Dockerfile`, and the login endpoint has rate limiting to guard against abuse. Integration tests for the full login flow were also added alongside these changes.
 </brief>
 
+<push_data id="8">
+{'repo': 'budget-tracker', 'pusher': 'kwilson-dev', 'branch': 'signup-flow-redesign', 'default_branch': 'main', 'commits': [{'message': 'restructure signup form into multi-step flow', 'added': ['components/SignupStep1.jsx', 'components/SignupStep2.jsx'], 'removed': [], 'modified': ['components/Signup.jsx']}, {'message': 'add client-side validation between steps', 'added': [], 'removed': [], 'modified': ['components/SignupStep1.jsx', 'components/SignupStep2.jsx']}]}
+</push_data>
 
+<brief id="8">
+🚀 *kwilson-dev* is restructuring the signup form into a multi-step flow in _budget-tracker_, on the `signup-flow-redesign` branch. Client-side validation was also added between steps.
+</brief>

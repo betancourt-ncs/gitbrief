@@ -36,7 +36,8 @@ def parse_pr_event(payload):
         "username": pr["user"]["login"],
         "repo": pr["head"]["repo"]["full_name"],
         "head_branch": pr["head"]["ref"],
-        "base_branch": pr["base"]["ref"]
+        "base_branch": pr["base"]["ref"],
+        "pr_number": pr["number"]
     }
 
     return pr_data
