@@ -8,12 +8,12 @@ def is_direct_eligible(tenant):
 
 
 # Social
-def is_social_eligible(tenant, event_data):
-    # Push event
-    if event_data['event_type'] == "push":
-        if tenant.social_webhook_url and (event_data['branch'] == event_data['default_branch']):
-            return True
-        else:
-            return False
-    else:
+def is_social_eligible(tenant, parsed_data):
+    if not tenant.social_webhook_url:
         return False
+
+    # Push event main branch check
+    if parsed_data['event_type'] == "push":
+        return parsed_data['branch'] == parsed_data['default_branch']
+
+    return True
