@@ -1,15 +1,39 @@
 import json
+from pathlib import Path
 from openai import OpenAI
 from dotenv import load_dotenv
 
 load_dotenv()
 client = OpenAI()
 
-with open("formatters/social_prompt.txt", "r", encoding="utf-8") as f:
-    instructions = f.read()
+# Allowing file reference from other locations or working directories
+PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
 
 
+# Lookup table mapping event types to format pair
+EVENT_TO_PAIR = {
+    "push": "social_push.txt",
+    "pull_request": "social_pr.txt"
+}
+
+
+# Return file contents as a string given a filename
+def load_prompt(filename):
+    with open(PROMPTS_DIR / filename, 'r', encoding="utf-8") as f:
+        return f.read()
+
+
+# Produce the right instruction string (full prompt) given an event type
+def build_instructions(event_type):
+    core = load_prompt("SOCIAL_CORE.TXT")
+    pair = load_prompt(EVENT_TO_PAIR[event_type])
+    return core + "\n\n" + pair
+
+
+# Generate output by calling the LLM given the parsed data
 def generate_social_brief(parsed_data):
+    instructions = build_instructions(parsed_data["event_type"])
+
     response = client.responses.create(
         model="gpt-4o-mini",
         instructions=instructions,
@@ -26,8 +50,9 @@ if __name__ == "__main__":
     import sys
     sys.path.insert(0, '.')
     from payload_parser import parse_push_event
-    with open("sample_payload.json") as f:
+    with open("sample_push_payload.json") as f:
         payload = json.load(f)
 
     parsed_payload = parse_push_event(payload)
+    parsed_payload["event_type"] = "push"   # normally stamped by server.py
     print(generate_social_brief(parsed_payload))

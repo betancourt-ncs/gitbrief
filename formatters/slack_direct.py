@@ -1,15 +1,39 @@
 import json
+from pathlib import Path
 from openai import OpenAI
 from dotenv import load_dotenv
 
 load_dotenv()
 client = OpenAI()
 
-with open("formatters/direct_prompt.txt", "r", encoding="utf-8") as f:
-    instructions = f.read()
+# Allowing file reference from other locations or working directories
+PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
 
 
+# Lookup table mapping event types to format pair
+EVENT_TO_PAIR = {
+    "push": "direct_push.txt",
+    "pull_request": "direct_pr.txt"
+}
+
+
+# Return file contents as a string given a filename
+def load_prompt(filename):
+    with open(PROMPTS_DIR / filename, 'r', encoding="utf-8") as f:
+        return f.read()
+
+
+# Produce the right instruction string (full prompt) given an event type
+def build_instructions(event_type):
+    core = load_prompt("DIRECT_CORE.TXT")
+    pair = load_prompt(EVENT_TO_PAIR[event_type])
+    return core + "\n\n" + pair
+
+
+# Generate output by calling the LLM given the parsed data
 def generate_direct_brief(parsed_data):
+    instructions = build_instructions(parsed_data["event_type"])
+
     response = client.responses.create(
         model="gpt-4o-mini",
         instructions=instructions,
@@ -25,9 +49,10 @@ def generate_direct_brief(parsed_data):
 if __name__ == "__main__":
     import sys
     sys.path.insert(0, '.')
-    from payload_parser import parse_push_event
-    with open("sample_payload.json") as f:
+    from payload_parser import parse_pr_event
+    with open("sample_pr_payload.json") as f:
         payload = json.load(f)
 
-    parsed_payload = parse_push_event(payload)
+    parsed_payload = parse_pr_event(payload)
+    parsed_payload["event_type"] = "pull_request"
     print(generate_direct_brief(parsed_payload))
