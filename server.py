@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Request, Depends, HTTPException
 import json
-from payload_parser import parse_push_event
+from payload_parser import parse_push_event, parse_pr_event
 from formatters.slack_social import generate_social_brief
 from formatters.slack_direct import generate_direct_brief
 from slack import post_to_slack
@@ -41,10 +41,23 @@ async def github_endpoint(request: Request, db: Session = Depends(get_db)):
     if not verified_signature:
         raise HTTPException(status_code=401, detail="Access denied")
 
-    # Parsing raw payload and event type retrieval
+    # Event type retrieval and parsing raw payload
     event_type = request.headers.get("X-GitHub-Event")
-    parsed_data = parse_push_event(payload)
-    parsed_data['event_type'] = event_type
+
+    if event_type == "push":
+        parsed_data = parse_push_event(payload)
+        parsed_data['event_type'] = event_type
+
+    elif event_type == "pull_request":
+        action = payload.get("action")
+        merged = payload.get("pull_request", {}).get("merged", False)
+        if not (action == "closed" and merged):
+            return {"status": "ignored", "reason": "PR not merged"}
+        parsed_data = parse_pr_event(payload)
+        parsed_data['event_type'] = event_type
+
+    else:
+        return {"status": "ignored", "reason": "event type not handled by gitbrief"}
 
     # Webhook lookup and brief format assignment
     slack_social_url = tenant.social_webhook_url
