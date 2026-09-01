@@ -39,14 +39,30 @@ def parse_pr_event(payload):
         "base_branch": pr["base"]["ref"],
         "pr_number": pr["number"]
     }
-
     return pr_data
+
+
+# Release
+def parse_release_event(payload):
+
+    release_data = {
+        'action': payload['action'],
+        'tag_name': payload['release']['tag_name'],
+        'target_commitish': payload['release']['target_commitish'],
+        'release_name': payload['release']['name'],
+        'prerelease': payload['release']['prerelease'],
+        'body': payload['release']['body'],
+        'html_url': payload['release']['html_url'],
+        'author_login': payload['release']['author']['login'],
+        'repo': payload['repository']['name']
+    }
+    return release_data
 
 
 # test
 if __name__ == "__main__":
 
-    with open("sample_pr_payload.json") as f:
+    with open("sample_release_payload.json") as f:
         payload = json.load(f)
 
-    print(parse_pr_event(payload))
+    print(parse_release_event(payload))

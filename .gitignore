@@ -5,3 +5,4 @@ sample_push_payload.json
 webhook_test.py
 test_slack.py
 sample_pr_payload.json
+sample_release_payload.json
