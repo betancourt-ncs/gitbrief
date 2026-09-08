@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Request, Depends, HTTPException
 import json
-from payload_parser import parse_push_event, parse_pr_event
+from payload_parser import parse_push_event, parse_pr_event, parse_release_event
 from formatters.slack_social import generate_social_brief
 from formatters.slack_direct import generate_direct_brief
 from slack import post_to_slack
@@ -52,8 +52,15 @@ async def github_endpoint(request: Request, db: Session = Depends(get_db)):
         action = payload.get("action")
         merged = payload.get("pull_request", {}).get("merged", False)
         if not (action == "closed" and merged):
-            return {"status": "ignored", "reason": "PR not merged"}
+            return {"status": "ignored", "reason": "PR not closed and merged"}
         parsed_data = parse_pr_event(payload)
+        parsed_data['event_type'] = event_type
+
+    elif event_type == "release":
+        action = payload.get("action")
+        if action != "published":
+            return {"status": "ignored", "reason": "release not published"}
+        parsed_data = parse_release_event(payload)
         parsed_data['event_type'] = event_type
 
     else:

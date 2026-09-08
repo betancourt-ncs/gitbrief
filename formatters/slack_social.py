@@ -13,7 +13,8 @@ PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
 # Lookup table mapping event types to format pair
 EVENT_TO_PAIR = {
     "push": "social_push.txt",
-    "pull_request": "social_pr.txt"
+    "pull_request": "social_pr.txt",
+    "release": "social_release.txt"
 }
 
 
