@@ -19,11 +19,12 @@ def parse_push_event(payload):
         "commits": commit_data
     }
 
-    # Checking for tag push vs branch push to assign branch name
+    # Checking for branch push vs tag push to assign branch name
     if push_data["ref_type"] == "heads":
         push_data["branch"] = payload["ref"].split("/")[-1]
     elif push_data["ref_type"] == "tags":
         push_data["branch"] = None
+        push_data["tag"] = payload["ref"].split("/")[-1]
 
     return push_data
 

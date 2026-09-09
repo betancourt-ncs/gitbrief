@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, Depends, HTTPException
+from fastapi import FastAPI, Request, Body, Depends, HTTPException
 import json
 from payload_parser import parse_push_event, parse_pr_event, parse_release_event
 from formatters.slack_social import generate_social_brief
@@ -18,10 +18,10 @@ Base.metadata.create_all(engine)
 
 
 @app.post("/webhook")
-async def github_endpoint(request: Request, db: Session = Depends(get_db)):
+def github_endpoint(request: Request, body: bytes = Body(), db: Session = Depends(get_db)):
 
-    raw_body = await request.body()
-    payload = json.loads(raw_body)
+    # Loading payload body as bytes
+    payload = json.loads(body)
 
     # Auth
     sender_id = payload["sender"]["id"]
@@ -36,8 +36,7 @@ async def github_endpoint(request: Request, db: Session = Depends(get_db)):
 
     secret_key = tenant.signing_secret
 
-    verified_signature = verify_signature(
-        raw_body, secret_key, github_signature)
+    verified_signature = verify_signature(body, secret_key, github_signature)
     if not verified_signature:
         raise HTTPException(status_code=401, detail="Access denied")
 
