@@ -10,6 +10,7 @@ from db.crud import get_tenant
 from sqlalchemy.orm import Session
 from auth import verify_signature
 from filters import is_social_eligible, is_direct_eligible
+from datetime import datetime
 
 app = FastAPI()
 
@@ -27,6 +28,9 @@ def github_endpoint(request: Request, body: bytes = Depends(get_payload_bytes), 
 
     # Loading payload body as bytes
     payload = json.loads(body)
+
+    # Debugging
+    print(f"{datetime.now()} - event: {request.headers.get('X-GitHub-Event')} - action: {payload.get('action') if request.headers.get('X-GitHub-Event') == 'release' else 'n/a'}")
 
     # Auth
     sender_id = payload["sender"]["id"]
@@ -62,7 +66,8 @@ def github_endpoint(request: Request, body: bytes = Depends(get_payload_bytes), 
 
     elif event_type == "release":
         action = payload.get("action")
-        if not (action == "published" or action == "released"):
+        # Guarding against "draft" releases and double briefs when published
+        if not (action == "released" or (action == "published" and payload.get("release").get("prerelease"))):
             return {"status": "ignored", "reason": "release not live and stable"}
         parsed_data = parse_release_event(payload)
         parsed_data['event_type'] = event_type
