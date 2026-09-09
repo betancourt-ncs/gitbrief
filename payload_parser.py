@@ -14,10 +14,17 @@ def parse_push_event(payload):
     push_data = {
         "repo": payload["repository"]["name"],
         "pusher": payload["pusher"]["name"],
-        "branch": payload["ref"].split("/")[-1],
+        "ref_type": payload["ref"].split("/")[-2],
         "default_branch": payload["repository"]["default_branch"],
         "commits": commit_data
     }
+
+    # Checking for tag push vs branch push to assign branch name
+    if push_data["ref_type"] == "heads":
+        push_data["branch"] = payload["ref"].split("/")[-1]
+    elif push_data["ref_type"] == "tags":
+        push_data["branch"] = None
+
     return push_data
 
 

@@ -58,8 +58,8 @@ async def github_endpoint(request: Request, db: Session = Depends(get_db)):
 
     elif event_type == "release":
         action = payload.get("action")
-        if action != "published":
-            return {"status": "ignored", "reason": "release not published"}
+        if not (action == "published" or action == "released"):
+            return {"status": "ignored", "reason": "release not live and stable"}
         parsed_data = parse_release_event(payload)
         parsed_data['event_type'] = event_type
 

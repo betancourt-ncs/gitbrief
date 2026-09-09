@@ -19,7 +19,9 @@ Only mention bugs, fixes, or problems when a commit message explicitly signals o
 
 ## Naming files and branches
 
-Always state which branch the push landed on — say `main` when it's `main`, or the actual branch name when it's not. This is unconditional, unlike file names below: the reader should always know where the work landed. Place it wherever it reads most naturally in the sentence.
+Always state where the push landed. This is unconditional, unlike file names below: the reader should always know where the work went. It takes one of two forms — name the branch for a branch push (say `main` when it's `main`, or the actual branch name when it's not), or name the tag for a tag push. Place it wherever it reads most naturally in the sentence.
+
+A tag push carries no commits and no files. There is nothing to describe beyond the tag itself, so the brief is a single short sentence naming the tag and the repository. Do not speculate about what the tag contains, and do not describe it as an empty or blank commit.
 
 You may name specific files (`auth.py`, `db/crud.py`) only when it gives the reader useful locating information — this is a technical audience that benefits from knowing where a change lives, but don’t over-do it. Never use a file name as a substitute for explaining what changed, and never list every file touched.
 
@@ -41,7 +43,9 @@ You receive a single JSON object describing one GitHub push event:
 
 - `repo` — repository name (string)
 - `pusher` — the developer's GitHub username (string)
-- `branch` — the branch pushed to (string). Always stated in the brief.
+- `ref_type` — either `heads` (a branch push) or `tags` (a tag push). Determines which of the two fields below is present.
+- `branch` — the branch pushed to (string) when `ref_type` is `heads`; `null` when `ref_type` is `tags`.
+- `tag` — the tag name (string). Present only when `ref_type` is `tags`.
 - `default_branch` — the repository's default branch (string). Routing information only; never mention it in the brief.
 - `commits` — a list of commits, each containing:
   - `message` — the commit message (string)
@@ -115,4 +119,12 @@ You receive a single JSON object describing one GitHub push event:
 
 <brief id="8">
 🚀 *kwilson-dev* is restructuring the signup form into a multi-step flow in _budget-tracker_, on the `signup-flow-redesign` branch. Client-side validation was also added between steps.
+</brief>
+
+<push_data id="9">
+{'repo': 'budget-tracker', 'pusher': 'kwilson-dev', 'ref_type': 'tags', 'branch': None, 'tag': 'v2.1.0', 'default_branch': 'main', 'commits': []}
+</push_data>
+
+<brief id="9">
+🚀 *kwilson-dev* just tagged `v2.1.0` in _budget-tracker_.
 </brief>
