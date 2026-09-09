@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, Body, Depends, HTTPException
+from fastapi import FastAPI, Request, Depends, HTTPException
 import json
 from payload_parser import parse_push_event, parse_pr_event, parse_release_event
 from formatters.slack_social import generate_social_brief
@@ -17,8 +17,13 @@ app = FastAPI()
 Base.metadata.create_all(engine)
 
 
+# Dependency for getting Github payload as bytes
+async def get_payload_bytes(request: Request):
+    return await request.body()
+
+
 @app.post("/webhook")
-def github_endpoint(request: Request, body: bytes = Body(), db: Session = Depends(get_db)):
+def github_endpoint(request: Request, body: bytes = Depends(get_payload_bytes), db: Session = Depends(get_db)):
 
     # Loading payload body as bytes
     payload = json.loads(body)
