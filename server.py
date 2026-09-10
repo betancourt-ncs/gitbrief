@@ -29,7 +29,7 @@ def github_endpoint(request: Request, body: bytes = Depends(get_payload_bytes), 
     # Loading payload body as bytes
     payload = json.loads(body)
 
-    # Debugging
+    # uvicorn debugging (release events)
     print(f"{datetime.now()} - event: {request.headers.get('X-GitHub-Event')} - action: {payload.get('action') if request.headers.get('X-GitHub-Event') == 'release' else 'n/a'}")
 
     # Auth
