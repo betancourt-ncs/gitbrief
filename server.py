@@ -11,6 +11,19 @@ from sqlalchemy.orm import Session
 from auth import verify_signature
 from filters import is_social_eligible, is_direct_eligible
 from datetime import datetime
+import logging
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
+)
+# Supressing third party libraries' internal DEBUG logs (silenced so my own loggers aren't buried)
+logging.getLogger("openai").setLevel(logging.WARNING)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
@@ -26,11 +39,12 @@ async def get_payload_bytes(request: Request):
 @app.post("/webhook")
 def github_endpoint(request: Request, body: bytes = Depends(get_payload_bytes), db: Session = Depends(get_db)):
 
+    delivery_id = request.headers.get("X-GitHub-Delivery")
+    logger.info(
+        f"Webhook received - event: {request.headers.get('X-GitHub-Event')} - delivery_id: {delivery_id}")
+
     # Loading payload body as bytes
     payload = json.loads(body)
-
-    # uvicorn debugging (release events)
-    print(f"{datetime.now()} - event: {request.headers.get('X-GitHub-Event')} - action: {payload.get('action') if request.headers.get('X-GitHub-Event') == 'release' else 'n/a'}")
 
     # Auth
     sender_id = payload["sender"]["id"]
