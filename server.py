@@ -10,7 +10,6 @@ from db.crud import get_tenant
 from sqlalchemy.orm import Session
 from auth import verify_signature
 from filters import is_social_eligible, is_direct_eligible
-from datetime import datetime
 import logging
 
 logging.basicConfig(
@@ -41,7 +40,7 @@ def github_endpoint(request: Request, body: bytes = Depends(get_payload_bytes), 
 
     delivery_id = request.headers.get("X-GitHub-Delivery")
     logger.info(
-        f"Webhook received - event: {request.headers.get('X-GitHub-Event')} - delivery_id: {delivery_id}")
+        f"Webhook received - event: {request.headers.get('X-GitHub-Event')} | delivery_id={delivery_id}")
 
     # Loading payload body as bytes
     payload = json.loads(body)
@@ -51,22 +50,35 @@ def github_endpoint(request: Request, body: bytes = Depends(get_payload_bytes), 
 
     tenant = get_tenant(db, sender_id)
     if not tenant:
+        logger.warning(
+            f"Webhook rejected: Tenant not found in db (sender_id='{sender_id}') | delivery_id={delivery_id}")
         raise HTTPException(status_code=404, detail="Error: User not found")
+
+    logger.info(
+        f"Tenant identified: (sender_id='{sender_id}') | delivery_id={delivery_id} ; tenant_id={tenant.id}")
 
     github_signature = request.headers.get("X-Hub-Signature-256")
     if not github_signature:
+        logger.warning(
+            f"Webhook rejected: missing X-Hub-Signature-256 header | delivery_id={delivery_id} ; tenant_id={tenant.id}")
         raise HTTPException(status_code=401)
 
     secret_key = tenant.signing_secret
-
     verified_signature = verify_signature(body, secret_key, github_signature)
     if not verified_signature:
+        logger.warning(
+            f"Webhook rejected: signature mismatch | delivery_id={delivery_id} ; tenant_id={tenant.id}")
         raise HTTPException(status_code=401, detail="Access denied")
+
+    logger.info(
+        f"Webhook successfully verified | delivery_id={delivery_id} ; tenant_id={tenant.id}")
 
     # Event type retrieval and parsing raw payload
     event_type = request.headers.get("X-GitHub-Event")
 
     if event_type == "push":
+        logger.info(
+            f"Event type identified: push | delivery_id={delivery_id} ; tenant_id={tenant.id}")
         parsed_data = parse_push_event(payload)
         parsed_data['event_type'] = event_type
 
@@ -74,19 +86,33 @@ def github_endpoint(request: Request, body: bytes = Depends(get_payload_bytes), 
         action = payload.get("action")
         merged = payload.get("pull_request", {}).get("merged", False)
         if not (action == "closed" and merged):
+            logger.debug(
+                f"Event ignored: PR action={action}, merged={merged} (not closed and merged) | delivery_id={delivery_id} ; tenant_id={tenant.id}")
             return {"status": "ignored", "reason": "PR not closed and merged"}
+
+        logger.info(
+            f"Event type identified: pull_request | delivery_id={delivery_id} ; tenant_id={tenant.id}")
         parsed_data = parse_pr_event(payload)
         parsed_data['event_type'] = event_type
 
     elif event_type == "release":
         action = payload.get("action")
         # Guarding against "draft" releases and double briefs when published
-        if not (action == "released" or (action == "published" and payload.get("release").get("prerelease"))):
+        is_prerelease = payload.get("release", {}).get("prerelease", False)
+
+        if not (action == "released" or (action == "published" and is_prerelease)):
+            logger.debug(
+                f"Event ignored: Release action='{action}', prerelease={is_prerelease} (not live and stable) | delivery_id={delivery_id} ; tenant_id={tenant.id}")
             return {"status": "ignored", "reason": "release not live and stable"}
+
+        logger.info(
+            f"Event type identified: release | delivery_id={delivery_id} ; tenant_id={tenant.id}")
         parsed_data = parse_release_event(payload)
         parsed_data['event_type'] = event_type
 
     else:
+        logger.debug(
+            f"Unrecognized event - '{event_type}' not handled by gitbrief | delivery_id={delivery_id} ; tenant_id={tenant.id}")
         return {"status": "ignored", "reason": "event type not handled by gitbrief"}
 
     # Webhook lookup and brief format assignment
