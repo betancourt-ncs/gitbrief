@@ -84,51 +84,59 @@ def github_endpoint(request: Request, body: bytes = Depends(get_payload_bytes), 
     # Event type retrieval and parsing raw payload
     event_type = request.headers.get("X-GitHub-Event")
 
-    if event_type == "push":
-        logger.info(
-            f"Event type identified: push | delivery_id={delivery_id} ; tenant_id={tenant.id}")
-        if payload.get("deleted"):
+    try:
+        if event_type == "push":
+            logger.info(
+                f"Event type identified: push | delivery_id={delivery_id} ; tenant_id={tenant.id}")
+            if payload.get("deleted"):
+                logger.debug(
+                    f"Event ignored: tag/branch deletion | delivery_id={delivery_id} ; tenant_id={tenant.id}")
+                return {"status": "ignored", "reason": "branch/tag deletion"}
+
+            parsed_data = parse_push_event(payload)
+            parsed_data['event_type'] = event_type
+
+        elif event_type == "pull_request":
+            action = payload.get("action")
+            merged = payload.get("pull_request", {}).get("merged", False)
+            if not (action == "closed" and merged):
+                logger.debug(
+                    f"Event ignored: PR action={action}, merged={merged} (not closed and merged) | delivery_id={delivery_id} ; tenant_id={tenant.id}")
+                return {"status": "ignored", "reason": "PR not closed and merged"}
+
+            logger.info(
+                f"Event type identified: pull_request | delivery_id={delivery_id} ; tenant_id={tenant.id}")
+            parsed_data = parse_pr_event(payload)
+            parsed_data['event_type'] = event_type
+
+        elif event_type == "release":
+            action = payload.get("action")
+            is_prerelease = payload.get("release", {}).get("prerelease", False)
+
+            # Github API 'quirk': Releases published directly (no previous draft or pre-release) will fire both a "published" & "released" payload independently
+            # This results in an exact duplicate brief + OpenAI API call landing in anyone's Slack channels
+            # "published" = 'this release is public and visible to the world' ; "released" = 'this release is a stable production version (not a pre-release)'
+            # Guarding against drafts, duplicate briefs when published, and other actions, while allowing pre-release promotions to stable releases:
+            if not (action == "released" or (is_prerelease and action == "published")):
+                logger.debug(
+                    f"Event ignored: Release action='{action}', prerelease={is_prerelease} (not live and stable) | delivery_id={delivery_id} ; tenant_id={tenant.id}")
+                return {"status": "ignored", "reason": "release not live and stable"}
+
+            logger.info(
+                f"Event type identified: release | delivery_id={delivery_id} ; tenant_id={tenant.id}")
+            parsed_data = parse_release_event(payload)
+            parsed_data['event_type'] = event_type
+
+        else:
             logger.debug(
-                f"Event ignored: tag/branch deletion | delivery_id={delivery_id} ; tenant_id={tenant.id}")
-            return {"status": "ignored", "reason": "branch/tag deletion"}
-        parsed_data = parse_push_event(payload)
-        parsed_data['event_type'] = event_type
+                f"Unrecognized event - '{event_type}' not handled by gitbrief | delivery_id={delivery_id} ; tenant_id={tenant.id}")
+            return {"status": "ignored", "reason": "event type not handled by gitbrief"}
 
-    elif event_type == "pull_request":
-        action = payload.get("action")
-        merged = payload.get("pull_request", {}).get("merged", False)
-        if not (action == "closed" and merged):
-            logger.debug(
-                f"Event ignored: PR action={action}, merged={merged} (not closed and merged) | delivery_id={delivery_id} ; tenant_id={tenant.id}")
-            return {"status": "ignored", "reason": "PR not closed and merged"}
-
-        logger.info(
-            f"Event type identified: pull_request | delivery_id={delivery_id} ; tenant_id={tenant.id}")
-        parsed_data = parse_pr_event(payload)
-        parsed_data['event_type'] = event_type
-
-    elif event_type == "release":
-        action = payload.get("action")
-        is_prerelease = payload.get("release", {}).get("prerelease", False)
-
-        # Github API 'quirk': Releases published directly (no previous draft or pre-release) will fire both a "published" & "released" payload independently
-        # This results in an exact duplicate brief + OpenAI API call landing in anyone's Slack channels
-        # "published" = 'this release is public and visible to the world' ; "released" = 'this release is a stable production version (not a pre-release)'
-        # Guarding against drafts, duplicate briefs when published, and other actions, while allowing pre-release promotions to stable releases:
-        if not (action == "released" or (is_prerelease and action == "published")):
-            logger.debug(
-                f"Event ignored: Release action='{action}', prerelease={is_prerelease} (not live and stable) | delivery_id={delivery_id} ; tenant_id={tenant.id}")
-            return {"status": "ignored", "reason": "release not live and stable"}
-
-        logger.info(
-            f"Event type identified: release | delivery_id={delivery_id} ; tenant_id={tenant.id}")
-        parsed_data = parse_release_event(payload)
-        parsed_data['event_type'] = event_type
-
-    else:
-        logger.debug(
-            f"Unrecognized event - '{event_type}' not handled by gitbrief | delivery_id={delivery_id} ; tenant_id={tenant.id}")
-        return {"status": "ignored", "reason": "event type not handled by gitbrief"}
+    # Guarding against unexpected Github payload shape/structure
+    except KeyError as e:
+        logger.exception(
+            f"{event_type} payload structure differs from expected parser fields | delivery_id={delivery_id} ; tenant_id={tenant.id}")
+        raise HTTPException(status_code=500, detail="Error: Unexpected payload shape") from e
 
     # Webhook lookup and brief format assignment
     slack_social_url = tenant.social_webhook_url
