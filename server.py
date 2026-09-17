@@ -55,7 +55,7 @@ def github_endpoint(request: Request, body: bytes = Depends(get_payload_bytes), 
         raise HTTPException(status_code=404, detail="Error: User not found")
 
     logger.info(
-        f"Tenant identified: (sender_id='{sender_id}') | delivery_id={delivery_id} ; tenant_id={tenant.id}")
+        f"Tenant identified (sender_id='{sender_id}') | delivery_id={delivery_id} ; tenant_id={tenant.id}")
 
     github_signature = request.headers.get("X-Hub-Signature-256")
     if not github_signature:
@@ -79,6 +79,10 @@ def github_endpoint(request: Request, body: bytes = Depends(get_payload_bytes), 
     if event_type == "push":
         logger.info(
             f"Event type identified: push | delivery_id={delivery_id} ; tenant_id={tenant.id}")
+        if payload.get("deleted"):
+            logger.info(
+                f"Event ignored: tag/branch deletion | delivery_id={delivery_id} ; tenant_id={tenant.id}")
+            return {"status": "ignored", "reason": "branch/tag deletion"}
         parsed_data = parse_push_event(payload)
         parsed_data['event_type'] = event_type
 
@@ -97,10 +101,13 @@ def github_endpoint(request: Request, body: bytes = Depends(get_payload_bytes), 
 
     elif event_type == "release":
         action = payload.get("action")
-        # Guarding against "draft" releases and double briefs when published
         is_prerelease = payload.get("release", {}).get("prerelease", False)
 
-        if not (action == "released" or (action == "published" and is_prerelease)):
+        # Github API 'quirk': Releases published directly (no previous draft or pre-release) will fire both a "published" & "released" payload independently
+        # This results in an exact duplicate brief + OpenAI API call landing in anyone's Slack channels
+        # "published" = 'this release is public and visible to the world' ; "released" = 'this release is a stable production version (not a pre-release)'
+        # Guarding against drafts, duplicate briefs when published, and other actions, while allowing pre-release promotions to stable releases:
+        if not (action == "released" or (is_prerelease and action == "published")):
             logger.debug(
                 f"Event ignored: Release action='{action}', prerelease={is_prerelease} (not live and stable) | delivery_id={delivery_id} ; tenant_id={tenant.id}")
             return {"status": "ignored", "reason": "release not live and stable"}
