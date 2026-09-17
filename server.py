@@ -43,10 +43,18 @@ def github_endpoint(request: Request, body: bytes = Depends(get_payload_bytes), 
         f"Webhook received - event: {request.headers.get('X-GitHub-Event')} | delivery_id={delivery_id}")
 
     # Loading payload body as bytes
-    payload = json.loads(body)
+    try:
+        payload = json.loads(body)
+    except json.JSONDecodeError as e:
+        logger.exception(
+            f"Malformed, invalid, or corrupted JSON payload | delivery_id={delivery_id}")
+        raise HTTPException(status_code=400, detail="Error: Bad Request") from e
 
     # Auth
-    sender_id = payload["sender"]["id"]
+    sender_id = payload.get("sender", {}).get("id", None)
+    if sender_id is None:
+        logger.error(f"Malformed payload: missing sender_id field | delivery_id={delivery_id}")
+        raise HTTPException(status_code=400, detail="Error: Malformed payload")
 
     tenant = get_tenant(db, sender_id)
     if not tenant:
@@ -80,7 +88,7 @@ def github_endpoint(request: Request, body: bytes = Depends(get_payload_bytes), 
         logger.info(
             f"Event type identified: push | delivery_id={delivery_id} ; tenant_id={tenant.id}")
         if payload.get("deleted"):
-            logger.info(
+            logger.debug(
                 f"Event ignored: tag/branch deletion | delivery_id={delivery_id} ; tenant_id={tenant.id}")
             return {"status": "ignored", "reason": "branch/tag deletion"}
         parsed_data = parse_push_event(payload)
