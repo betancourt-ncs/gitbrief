@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from auth import verify_signature
 from filters import is_social_eligible, is_direct_eligible
 import logging
+import requests
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -142,50 +143,101 @@ def github_endpoint(request: Request, body: bytes = Depends(get_payload_bytes), 
     slack_social_url = tenant.social_webhook_url
     slack_direct_url = tenant.direct_webhook_url
 
-    # Social
-    social_delivered = False
+    # Social eligibility
     social_eligible = is_social_eligible(tenant, parsed_data)
-
     if social_eligible:
-        brief = ""
+        social_skipped_reason = None
+        logger.info(f"Social format eligible | delivery_id={delivery_id} ; tenant_id={tenant.id}")
+    elif not slack_social_url:
+        social_skipped_reason = "not_configured"
+        logger.info(
+            f"Social format skipped: {social_skipped_reason} | delivery_id={delivery_id} ; tenant_id={tenant.id}")
+    else:
+        social_skipped_reason = "non_default_branch"
+        logger.info(
+            f"Social format skipped: {social_skipped_reason} | delivery_id={delivery_id} ; tenant_id={tenant.id}")
+
+    # Direct eligibility
+    direct_eligible = is_direct_eligible(tenant)
+    if direct_eligible:
+        direct_skipped_reason = None
+        logger.info(f"Direct format eligible | delivery_id={delivery_id} ; tenant_id={tenant.id}")
+    else:
+        direct_skipped_reason = "not_configured"
+        logger.info(
+            f"Direct format skipped: {direct_skipped_reason} | delivery_id={delivery_id} ; tenant_id={tenant.id}")
+
+    # Zero eligible destinations
+    if not social_eligible and not direct_eligible:
+        logger.warning(
+            f"Both social & direct formats skipped (zero eligible destinations) | delivery_id={delivery_id} ; tenant_id={tenant.id}")
+        return {
+            "social_status": {"status": "skipped", "reason": social_skipped_reason},
+            "direct_status": {"status": "skipped", "reason": direct_skipped_reason},
+        }
+
+    # Social generation and delivery
+    social_delivered = False
+    if social_eligible:
         try:
             brief = generate_social_brief(parsed_data)
-        except Exception as e:
-            print(f"Error type: {type(e)}")
-            print(f"Detail:'{e}' happened when attempting to generate the social brief for {tenant}")
-
-        if brief:
-            try:
+        except Exception:
+            # logs the actual type and full traceback
+            logger.exception(
+                f"Social brief generation failed | delivery_id={delivery_id} ; tenant_id={tenant.id}")
+        else:
+            if not brief:
+                # OpenAI API request succeeded but no text produced
+                logger.error(
+                    f"Social brief generation returned empty output | delivery_id={delivery_id} ; tenant_id={tenant.id}")
+            else:
+                logger.info(
+                    f"Social brief generated | delivery_id={delivery_id} ; tenant_id={tenant.id}")
+                # already guaranteed by eligibility; asserting the type so the linter doesn't complain
                 assert slack_social_url is not None
-                post_to_slack(brief, slack_social_url)
-                social_delivered = True
-            except Exception as e:
-                print(f"Error type: {type(e)}")
-                print(
-                    f"Detail:'{e}' happened when attempting to post the social brief to {tenant}'s webhook")
+                try:
+                    post_to_slack(brief, slack_social_url)
+                    social_delivered = True
+                    logger.info(
+                        f"Social brief delivered to Slack | delivery_id={delivery_id} ; tenant_id={tenant.id}")
+                except requests.HTTPError as e:
+                    status = e.response.status_code if e.response is not None else "unknown"
+                    # Unsuccessful responses (4xx or 5xx codes)
+                    logger.error(
+                        f"Social brief delivery failed: Slack returned {status} | delivery_id={delivery_id} ; tenant_id={tenant.id}")
+                except requests.RequestException as e:
+                    # Timeouts and connection errors
+                    logger.error(
+                        f"Social brief delivery failed: {type(e).__name__} | delivery_id={delivery_id} ; tenant_id={tenant.id}")
 
-    # Direct
+    # Direct generation and delivery
     direct_delivered = False
-    direct_eligible = is_direct_eligible(tenant)
-
     if direct_eligible:
-        brief = ""
-
         try:
             brief = generate_direct_brief(parsed_data)
-        except Exception as e:
-            print(f"Error type: {type(e)}")
-            print(f"Detail:'{e}' happened when attempting to generate the direct brief for {tenant}")
-
-        if brief:
-            try:
+        except Exception:
+            logger.exception(
+                f"Direct brief generation failed | delivery_id={delivery_id} ; tenant_id={tenant.id}")
+        else:
+            if not brief:
+                logger.error(
+                    f"Direct brief generation returned empty output | delivery_id={delivery_id} ; tenant_id={tenant.id}")
+            else:
+                logger.info(
+                    f"Direct brief generated | delivery_id={delivery_id} ; tenant_id={tenant.id}")
                 assert slack_direct_url is not None
-                post_to_slack(brief, slack_direct_url)
-                direct_delivered = True
-            except Exception as e:
-                print(f"Error type: {type(e)}")
-                print(
-                    f"Detail:'{e}' happened when attempting to post the direct brief to {tenant}'s webhook")
+                try:
+                    post_to_slack(brief, slack_direct_url)
+                    direct_delivered = True
+                    logger.info(
+                        f"Direct brief delivered to Slack | delivery_id={delivery_id} ; tenant_id={tenant.id}")
+                except requests.HTTPError as e:
+                    status = e.response.status_code if e.response is not None else "unknown"
+                    logger.error(
+                        f"Direct brief delivery failed: Slack returned {status} | delivery_id={delivery_id} ; tenant_id={tenant.id}")
+                except requests.RequestException as e:
+                    logger.error(
+                        f"Direct brief delivery failed: {type(e).__name__} | delivery_id={delivery_id} ; tenant_id={tenant.id}")
 
     # Return status
     if social_delivered == True:
