@@ -4,7 +4,10 @@ from openai import OpenAI
 from dotenv import load_dotenv
 
 load_dotenv()
-client = OpenAI()
+client = OpenAI(
+    timeout=30.0,
+    max_retries=2
+)
 
 # Allowing file reference from other locations or working directories
 PROMPTS_DIR = Path(__file__).parent.parent / "prompts"

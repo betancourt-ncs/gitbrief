@@ -1,9 +1,6 @@
-from fastapi import FastAPI, Request, Depends, HTTPException
+from fastapi import FastAPI, Request, Depends, HTTPException, BackgroundTasks, Response
 import json
 from payload_parser import parse_push_event, parse_pr_event, parse_release_event
-from formatters.slack_social import generate_social_brief
-from formatters.slack_direct import generate_direct_brief
-from slack import post_to_slack
 from db.base import Base, engine, get_db
 import db.models  # pylint: disable=unused-import
 from db.crud import get_tenant
@@ -11,7 +8,7 @@ from sqlalchemy.orm import Session
 from auth import verify_signature
 from filters import is_social_eligible, is_direct_eligible
 import logging
-import requests
+from briefing import generate_and_post_social, generate_and_post_direct
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -36,8 +33,15 @@ async def get_payload_bytes(request: Request):
     return await request.body()
 
 
-@app.post("/webhook")
-def github_endpoint(request: Request, body: bytes = Depends(get_payload_bytes), db: Session = Depends(get_db)):
+# Per-format webhook response status (eligibility only; brief outcomes are logged in briefing.py)
+def resolve_status(eligible: bool, skipped_reason: str | None) -> dict:
+    if eligible:
+        return {"status": "queued"}
+    return {"status": "skipped", "reason": skipped_reason}
+
+
+@app.post("/webhook", status_code=202)
+def github_endpoint(request: Request, background_tasks: BackgroundTasks, response: Response, body: bytes = Depends(get_payload_bytes), db: Session = Depends(get_db)):
 
     delivery_id = request.headers.get("X-GitHub-Delivery")
     logger.info(
@@ -92,6 +96,7 @@ def github_endpoint(request: Request, body: bytes = Depends(get_payload_bytes), 
             if payload.get("deleted"):
                 logger.debug(
                     f"Event ignored: tag/branch deletion | delivery_id={delivery_id} ; tenant_id={tenant.id}")
+                response.status_code = 200
                 return {"status": "ignored", "reason": "branch/tag deletion"}
 
             parsed_data = parse_push_event(payload)
@@ -103,6 +108,7 @@ def github_endpoint(request: Request, body: bytes = Depends(get_payload_bytes), 
             if not (action == "closed" and merged):
                 logger.debug(
                     f"Event ignored: PR action={action}, merged={merged} (not closed and merged) | delivery_id={delivery_id} ; tenant_id={tenant.id}")
+                response.status_code = 200
                 return {"status": "ignored", "reason": "PR not closed and merged"}
 
             logger.info(
@@ -121,6 +127,7 @@ def github_endpoint(request: Request, body: bytes = Depends(get_payload_bytes), 
             if not (action == "released" or (is_prerelease and action == "published")):
                 logger.debug(
                     f"Event ignored: Release action='{action}', prerelease={is_prerelease} (not live and stable) | delivery_id={delivery_id} ; tenant_id={tenant.id}")
+                response.status_code = 200
                 return {"status": "ignored", "reason": "release not live and stable"}
 
             logger.info(
@@ -131,6 +138,7 @@ def github_endpoint(request: Request, body: bytes = Depends(get_payload_bytes), 
         else:
             logger.debug(
                 f"Unrecognized event - '{event_type}' not handled by gitbrief | delivery_id={delivery_id} ; tenant_id={tenant.id}")
+            response.status_code = 200
             return {"status": "ignored", "reason": "event type not handled by gitbrief"}
 
     # Guarding against unexpected Github payload shape/structure
@@ -171,90 +179,28 @@ def github_endpoint(request: Request, body: bytes = Depends(get_payload_bytes), 
     if not social_eligible and not direct_eligible:
         logger.warning(
             f"Both social & direct formats skipped (zero eligible destinations) | delivery_id={delivery_id} ; tenant_id={tenant.id}")
+        response.status_code = 200
         return {
-            "social_status": {"status": "skipped", "reason": social_skipped_reason},
-            "direct_status": {"status": "skipped", "reason": direct_skipped_reason},
+            "social_status": resolve_status(social_eligible, social_skipped_reason),
+            "direct_status": resolve_status(direct_eligible, direct_skipped_reason),
         }
 
-    # Social generation and delivery
-    social_delivered = False
+    # Queue social brief generation and delivery (see briefing.py)
     if social_eligible:
-        try:
-            brief = generate_social_brief(parsed_data)
-        except Exception:
-            # logs the actual type and full traceback
-            logger.exception(
-                f"Social brief generation failed | delivery_id={delivery_id} ; tenant_id={tenant.id}")
-        else:
-            if not brief:
-                # OpenAI API request succeeded but no text produced
-                logger.error(
-                    f"Social brief generation returned empty output | delivery_id={delivery_id} ; tenant_id={tenant.id}")
-            else:
-                logger.info(
-                    f"Social brief generated | delivery_id={delivery_id} ; tenant_id={tenant.id}")
-                # already guaranteed by eligibility; asserting the type so the linter doesn't complain
-                assert slack_social_url is not None
-                try:
-                    post_to_slack(brief, slack_social_url)
-                    social_delivered = True
-                    logger.info(
-                        f"Social brief delivered to Slack | delivery_id={delivery_id} ; tenant_id={tenant.id}")
-                except requests.HTTPError as e:
-                    status = e.response.status_code if e.response is not None else "unknown"
-                    # Unsuccessful responses (4xx or 5xx codes)
-                    logger.error(
-                        f"Social brief delivery failed: Slack returned {status} | delivery_id={delivery_id} ; tenant_id={tenant.id}")
-                except requests.RequestException as e:
-                    # Timeouts and connection errors
-                    logger.error(
-                        f"Social brief delivery failed: {type(e).__name__} | delivery_id={delivery_id} ; tenant_id={tenant.id}")
+        assert slack_social_url is not None   # Guaranteed by eligibility; type included here for linter
+        background_tasks.add_task(generate_and_post_social, parsed_data,
+                                  slack_social_url, delivery_id, tenant.id)
+        logger.info(f"Social brief queued | delivery_id={delivery_id} ; tenant_id={tenant.id}")
 
-    # Direct generation and delivery
-    direct_delivered = False
+    # Queue direct brief generation and delivery (see briefing.py)
     if direct_eligible:
-        try:
-            brief = generate_direct_brief(parsed_data)
-        except Exception:
-            logger.exception(
-                f"Direct brief generation failed | delivery_id={delivery_id} ; tenant_id={tenant.id}")
-        else:
-            if not brief:
-                logger.error(
-                    f"Direct brief generation returned empty output | delivery_id={delivery_id} ; tenant_id={tenant.id}")
-            else:
-                logger.info(
-                    f"Direct brief generated | delivery_id={delivery_id} ; tenant_id={tenant.id}")
-                assert slack_direct_url is not None
-                try:
-                    post_to_slack(brief, slack_direct_url)
-                    direct_delivered = True
-                    logger.info(
-                        f"Direct brief delivered to Slack | delivery_id={delivery_id} ; tenant_id={tenant.id}")
-                except requests.HTTPError as e:
-                    status = e.response.status_code if e.response is not None else "unknown"
-                    logger.error(
-                        f"Direct brief delivery failed: Slack returned {status} | delivery_id={delivery_id} ; tenant_id={tenant.id}")
-                except requests.RequestException as e:
-                    logger.error(
-                        f"Direct brief delivery failed: {type(e).__name__} | delivery_id={delivery_id} ; tenant_id={tenant.id}")
+        assert slack_direct_url is not None   # same as above
+        background_tasks.add_task(generate_and_post_direct, parsed_data,
+                                  slack_direct_url, delivery_id, tenant.id)
+        logger.info(f"Direct brief queued | delivery_id={delivery_id} ; tenant_id={tenant.id}")
 
-    # Return status
-    if social_delivered == True:
-        social_status = {"status": "posted"}
-    elif not social_eligible:
-        social_status = {"status": "skipped"}
-    else:
-        social_status = {"status": "failed"}
-
-    if direct_delivered == True:
-        direct_status = {"status": "posted"}
-    elif not direct_eligible:
-        direct_status = {"status": "skipped"}
-    else:
-        direct_status = {"status": "failed"}
-
+    # Return per-format eligibility status
     return {
-        "social_status": social_status,
-        "direct_status": direct_status
+        "social_status": resolve_status(social_eligible, social_skipped_reason),
+        "direct_status": resolve_status(direct_eligible, direct_skipped_reason),
     }

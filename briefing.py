@@ -17,7 +17,7 @@ def generate_and_post_social(parsed_data: dict, slack_social_url: str, delivery_
             f"Social brief generation failed | delivery_id={delivery_id} ; tenant_id={tenant_id}")
     else:
         if not brief:
-            # OpenAI API request succeeded but no text produced
+            # OpenAI API request succeeded, but no text produced
             logger.error(
                 f"Social brief generation returned empty output | delivery_id={delivery_id} ; tenant_id={tenant_id}")
         else:
@@ -27,13 +27,13 @@ def generate_and_post_social(parsed_data: dict, slack_social_url: str, delivery_
                 post_to_slack(brief, slack_social_url)
                 logger.info(
                     f"Social brief delivered to Slack | delivery_id={delivery_id} ; tenant_id={tenant_id}")
+            # Unsuccessful responses (4xx or 5xx codes)
             except requests.HTTPError as e:
                 status = e.response.status_code if e.response is not None else "unknown"
-                # Unsuccessful responses (4xx or 5xx codes)
                 logger.error(
                     f"Social brief delivery failed: Slack returned {status} | delivery_id={delivery_id} ; tenant_id={tenant_id}")
+            # Timeouts and connection errors
             except requests.RequestException as e:
-                # Timeouts and connection errors
                 logger.error(
                     f"Social brief delivery failed: {type(e).__name__} | delivery_id={delivery_id} ; tenant_id={tenant_id}")
 
