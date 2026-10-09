@@ -15,7 +15,7 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
 )
 # Supressing third party libraries' internal DEBUG logs (silenced so my own loggers aren't buried)
-logging.getLogger("openai").setLevel(logging.WARNING)
+logging.getLogger("openai").setLevel(logging.INFO)  # INFO surfaces OpenAI SDK retry attempts
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
@@ -93,11 +93,21 @@ def github_endpoint(request: Request, background_tasks: BackgroundTasks, respons
         if event_type == "push":
             logger.info(
                 f"Event type identified: push | delivery_id={delivery_id} ; tenant_id={tenant.id}")
+            # Ignoring branch/tag deletion push
             if payload.get("deleted"):
                 logger.debug(
                     f"Event ignored: tag/branch deletion | delivery_id={delivery_id} ; tenant_id={tenant.id}")
                 response.status_code = 200
                 return {"status": "ignored", "reason": "branch/tag deletion"}
+            # Ignoring a merged PR duplicate push
+            head_commit = payload.get("head_commit") or {}
+            head_message = head_commit.get("message", "")
+            head_committer = (head_commit.get("committer") or {}).get("username", "")
+            if head_message.startswith("Merge pull request #") and head_committer == "web-flow":
+                logger.debug(
+                    f"Event ignored: merged PR duplicate | delivery_id={delivery_id} ; tenant_id={tenant.id}")
+                response.status_code = 200
+                return {"status": "ignored", "reason": "merged PR duplicate"}
 
             parsed_data = parse_push_event(payload)
             parsed_data['event_type'] = event_type
