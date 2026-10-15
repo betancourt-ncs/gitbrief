@@ -1,6 +1,3 @@
-import json
-
-
 # Push
 def parse_push_event(payload):
 
@@ -14,17 +11,20 @@ def parse_push_event(payload):
     push_data = {
         "repo": payload["repository"]["name"],
         "pusher": payload["pusher"]["name"],
-        "ref_type": payload["ref"].split("/")[-2],
         "default_branch": payload["repository"]["default_branch"],
         "commits": commit_data
     }
 
-    # Checking for branch push vs tag push to assign branch name
-    if push_data["ref_type"] == "heads":
-        push_data["branch"] = payload["ref"].split("/")[-1]
-    elif push_data["ref_type"] == "tags":
+    # Checking for branch push vs tag push to assign branch or tag name
+    # Slicing using slashes (/) is ineffective if branch name contains one (e.g refs/heads/feature/login)
+    ref = payload["ref"]
+    if ref.startswith("refs/heads/"):
+        push_data["ref_type"] = "heads"
+        push_data["branch"] = ref.removeprefix("refs/heads/")
+    elif ref.startswith("refs/tags/"):
+        push_data["ref_type"] = "tags"
         push_data["branch"] = None
-        push_data["tag"] = payload["ref"].split("/")[-1]
+        push_data["tag"] = ref.removeprefix("refs/tags/")
 
     return push_data
 
@@ -65,12 +65,3 @@ def parse_release_event(payload):
         'repo': payload['repository']['name']
     }
     return release_data
-
-
-# test
-if __name__ == "__main__":
-
-    with open("sample_release_payload.json") as f:
-        payload = json.load(f)
-
-    print(parse_release_event(payload))
