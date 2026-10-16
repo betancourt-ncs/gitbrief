@@ -47,16 +47,3 @@ def generate_social_brief(parsed_data):
     )
 
     return response.output_text
-
-
-# Test
-if __name__ == "__main__":
-    import sys
-    sys.path.insert(0, '.')
-    from payload_parser import parse_push_event
-    with open("sample_push_payload.json") as f:
-        payload = json.load(f)
-
-    parsed_payload = parse_push_event(payload)
-    parsed_payload["event_type"] = "push"   # normally stamped by server.py
-    print(generate_social_brief(parsed_payload))

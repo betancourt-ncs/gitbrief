@@ -198,15 +198,13 @@ def github_endpoint(request: Request, background_tasks: BackgroundTasks, respons
     # Queue social brief generation and delivery (see briefing.py)
     if social_eligible:
         assert slack_social_url is not None   # Guaranteed by eligibility; type included here for linter
-        background_tasks.add_task(generate_and_post_social, parsed_data,
-                                  slack_social_url, delivery_id, tenant.id)
+        background_tasks.add_task(generate_and_post_social, parsed_data, slack_social_url, delivery_id, tenant.id)
         logger.info(f"Social brief queued | delivery_id={delivery_id} ; tenant_id={tenant.id}")
 
     # Queue direct brief generation and delivery (see briefing.py)
     if direct_eligible:
         assert slack_direct_url is not None   # same as above
-        background_tasks.add_task(generate_and_post_direct, parsed_data,
-                                  slack_direct_url, delivery_id, tenant.id)
+        background_tasks.add_task(generate_and_post_direct, parsed_data, slack_direct_url, delivery_id, tenant.id)
         logger.info(f"Direct brief queued | delivery_id={delivery_id} ; tenant_id={tenant.id}")
 
     # Return per-format eligibility status

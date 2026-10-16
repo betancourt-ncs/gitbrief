@@ -47,16 +47,3 @@ def generate_direct_brief(parsed_data):
     )
 
     return response.output_text
-
-
-# Test
-if __name__ == "__main__":
-    import sys
-    sys.path.insert(0, '.')
-    from payload_parser import parse_pr_event
-    with open("sample_pr_payload.json") as f:
-        payload = json.load(f)
-
-    parsed_payload = parse_pr_event(payload)
-    parsed_payload["event_type"] = "pull_request"
-    print(generate_direct_brief(parsed_payload))
