@@ -30,3 +30,11 @@ def test_post_to_slack_raises_on_http_error(mocker):
     # using pytest.raises since raising is the correct behavior here, not an error
     with pytest.raises(requests.HTTPError):    # passes test only if the block raises this exception
         slack.post_to_slack("fake brief", SLACK_URL)
+
+    # same as:
+        #     try:
+        #         slack.post_to_slack("fake brief", SLACK_URL)
+        #     except requests.HTTPError:
+        #         pass                           # raised the expected error: success
+        #     else:
+        #         pytest.fail("DID NOT RAISE")   # no error at all: failure
