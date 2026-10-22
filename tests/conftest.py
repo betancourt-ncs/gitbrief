@@ -120,3 +120,9 @@ def test_client(db_session):
     #   which forces you to name the argument when called, so every call site says exactly which webhook it’s turning off
 
     #   calling make_tenant() (no args specified) configures both formats, since they are the default parameters
+
+
+# For integration tests:
+
+    # Pytest builds a fixture once per test and reuses it, so any test using both make_tenant and test_client
+    # has one session (created by db_session) shared by all three: the test db, the tenant factory, and the app.
