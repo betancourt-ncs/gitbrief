@@ -33,7 +33,7 @@ async def get_payload_bytes(request: Request):
     return await request.body()
 
 
-# Per-format webhook response status (eligibility only; brief outcomes are logged in briefing.py)
+# helper function: my webhook's response status per format (eligibility only; brief outcomes are logged in briefing.py)
 def resolve_status(eligible: bool, skipped_reason: str | None) -> dict:
     if eligible:
         return {"status": "queued"}
