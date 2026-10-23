@@ -53,3 +53,39 @@ def test_valid_sender_returns_202(make_tenant, test_client, load_sample_payload,
 
     mock_social.assert_called_once_with(parsed_payload, tenant.social_webhook_url, "test-delivery-id", tenant.id)
     mock_direct.assert_called_once_with(parsed_payload, tenant.direct_webhook_url, "test-delivery-id", tenant.id)
+
+
+# Missing header test: ensure a request with a missing GitHub signature is rejected with a 401
+def test_missing_header_returns_401(make_tenant, test_client, load_sample_payload, mocker):
+    tenant = make_tenant()
+    payload = load_sample_payload("push_default_branch.json")
+    mock_social = mocker.patch("server.generate_and_post_social")
+    mock_direct = mocker.patch("server.generate_and_post_direct")
+    body, headers = build_proper_request(payload, "push", tenant.signing_secret)
+
+    del headers["X-Hub-Signature-256"]    # only variable that changes from happy path
+    response = test_client.post("/webhook", content=body, headers=headers)
+
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Unauthorized"}    # no detail in server.py, it returns FastAPI's default detail
+
+    # rejected payloads should never get queued
+    mock_social.assert_not_called()
+    mock_direct.assert_not_called()
+
+
+# Bad signature test: ensure a request with a mismatched GitHub signature is rejected with a 401
+def test_bad_signature_returns_401(make_tenant, test_client, load_sample_payload, mocker):
+    make_tenant()
+    payload = load_sample_payload("push_default_branch.json")
+    mock_social = mocker.patch("server.generate_and_post_social")
+    mock_direct = mocker.patch("server.generate_and_post_direct")
+    body, headers = build_proper_request(payload, "push", "wrong-secret")   # only variable that changes from happy path
+
+    response = test_client.post("/webhook", content=body, headers=headers)
+
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Access denied"}
+
+    mock_social.assert_not_called()
+    mock_direct.assert_not_called()
