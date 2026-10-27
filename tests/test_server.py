@@ -35,37 +35,41 @@ def build_proper_request(payload, event_type, signing_secret):
 
 # TESTS BEGIN HERE
 
+# Pre-Auth
+
+# JSON parsing test: reject malformed or invalid JSON formatting
+def test_malformed_json_returns_400(test_client):
+    # send body bytes that aren't valid JSON
+    body = b"not json"
+
+    # TestClient sends a post request to my app endpoint (mimicking GitHub) & returns the response
+    response = test_client.post("/webhook", content=body)
+
+    # assert gitbrief returned correct status code (400) and body (response.json())
+    assert response.status_code == 400
+    assert response.json() == {"detail": "Error: Bad Request"}
+
+
+# Missing sender test: reject payloads with no sender (routing key missing)
+def test_missing_sender_returns_400(test_client, load_sample_payload):
+    payload = load_sample_payload("push_default_branch.json")
+    del payload["sender"]   # no sender object at all
+
+    response = test_client.post("/webhook", json=payload)
+
+    assert response.status_code == 400
+    assert response.json() == {"detail": "Error: Malformed payload"}
+
+
 # Unknown sender test: tenant not found in db, so the lookup rejects before auth (no signature needed)
 def test_unknown_sender_returns_404(test_client, load_sample_payload):
     # empty test DB since make_tenant is never called
     payload = load_sample_payload("push_default_branch.json")
 
-    # TestClient sends a post request to my app endpoint (mimicking GitHub) & returns the response
     response = test_client.post("/webhook", json=payload)
 
-    # assert gitbrief returned correct status code (404) and body (response.json())
     assert response.status_code == 404
     assert response.json() == {"detail": "Error: User not found"}   # confirms that MY tenant lookup line produced this 404
-
-
-# Happy path test: a signed and verified payload returns 202, eligible formats are queued for generation + posting
-def test_valid_sender_returns_202(make_tenant, test_client, load_sample_payload, mocker):
-    tenant = make_tenant()  # both webhooks configured & pushes on the default branch by default
-    payload = load_sample_payload("push_default_branch.json")
-    mock_social = mocker.patch("server.generate_and_post_social")
-    mock_direct = mocker.patch("server.generate_and_post_direct")
-    body, headers = build_proper_request(payload, "push", tenant.signing_secret)
-
-    parsed_payload = parse_push_event(payload)
-    parsed_payload["event_type"] = "push"
-
-    response = test_client.post("/webhook", content=body, headers=headers)
-
-    assert response.status_code == 202
-    assert response.json() == {"social_status": {"status": "queued"}, "direct_status": {"status": "queued"}}
-
-    mock_social.assert_called_once_with(parsed_payload, tenant.social_webhook_url, "test-delivery-id", tenant.id)
-    mock_direct.assert_called_once_with(parsed_payload, tenant.direct_webhook_url, "test-delivery-id", tenant.id)
 
 
 # Missing header test: ensure a request with a missing GitHub signature is rejected with a 401
@@ -147,3 +151,23 @@ def test_skipped_formats(tenant_webhooks, ref, expected_status_code, expected_so
         mock_direct.assert_called_once()
     else:
         mock_direct.assert_not_called()
+
+
+# Happy path test (queuing): a signed and verified payload returns 202, eligible formats are queued for generation + posting
+def test_valid_sender_returns_202(make_tenant, test_client, load_sample_payload, mocker):
+    tenant = make_tenant()  # both webhooks configured & pushes on the default branch by default
+    payload = load_sample_payload("push_default_branch.json")
+    mock_social = mocker.patch("server.generate_and_post_social")
+    mock_direct = mocker.patch("server.generate_and_post_direct")
+    body, headers = build_proper_request(payload, "push", tenant.signing_secret)
+
+    parsed_payload = parse_push_event(payload)
+    parsed_payload["event_type"] = "push"
+
+    response = test_client.post("/webhook", content=body, headers=headers)
+
+    assert response.status_code == 202
+    assert response.json() == {"social_status": {"status": "queued"}, "direct_status": {"status": "queued"}}
+
+    mock_social.assert_called_once_with(parsed_payload, tenant.social_webhook_url, "test-delivery-id", tenant.id)
+    mock_direct.assert_called_once_with(parsed_payload, tenant.direct_webhook_url, "test-delivery-id", tenant.id)
