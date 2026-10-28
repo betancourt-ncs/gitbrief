@@ -2,8 +2,9 @@
 import json
 import hmac
 import hashlib
-from payload_parser import parse_push_event
 import pytest
+import requests
+from payload_parser import parse_push_event
 
 
 # Eligibility status return values per format (built by resolve_status in server.py)
@@ -303,7 +304,9 @@ def test_skipped_formats(tenant_webhooks, ref, expected_status_code, expected_so
         mock_direct.assert_not_called()
 
 
-# Happy path test (queuing): a signed and verified payload returns 202, eligible formats are queued for generation + posting
+# Queuing
+
+# Happy path test: a signed and verified payload returns 202, eligible formats are queued for generation + posting
 def test_valid_sender_returns_202(make_tenant, test_client, load_sample_payload, mocker):
     tenant = make_tenant()  # both webhooks configured & pushes on the default branch by default
     payload = load_sample_payload("push_default_branch.json")
@@ -321,3 +324,42 @@ def test_valid_sender_returns_202(make_tenant, test_client, load_sample_payload,
 
     mock_social.assert_called_once_with(parsed_payload, tenant.social_webhook_url, "test-delivery-id", tenant.id)
     mock_direct.assert_called_once_with(parsed_payload, tenant.direct_webhook_url, "test-delivery-id", tenant.id)
+
+
+# Background work
+
+# Independent generation & delivery test: if the first format in queue (social) fails, the second (direct) still succeeds
+# a social failure (at generation OR at Slack delivery) never stops the direct brief from posting
+@pytest.mark.parametrize(
+    "social_side_effect, slack_side_effect, expected_slack_call_count",
+    [
+        # social brief generation fails (e.g. OpenAI down): social never reaches Slack, so direct is the only post to it
+        # post_to_slack returns None = no side effect: it just succeeds (only direct calls it in this row)
+        pytest.param(RuntimeError("OpenAI down"), None, 1, id="social_generation_fails"),
+
+        # social brief generates, but its Slack post fails: 1st post (social) raises, 2nd post (direct) succeeds
+        # ["social brief"] is a list (even when only called once per request) bc return_value can’t raise
+        pytest.param(["social brief"], [requests.HTTPError("Slack error"), None], 2, id="social_delivery_fails")
+    ]
+)
+def test_independent_delivery(social_side_effect, slack_side_effect, expected_slack_call_count,
+                              make_tenant, load_sample_payload, test_client, mocker):
+    tenant = make_tenant()
+    payload = load_sample_payload("push_default_branch.json")
+
+    # social generation either fails (raises) (row 1) or generates but fails to post (row 2)
+    mocker.patch("briefing.generate_social_brief", side_effect=social_side_effect)
+    # direct generation always succeeds here
+    mocker.patch("briefing.generate_direct_brief", return_value="direct brief")
+    # post_to_slack succeeds on row 1 (for direct), but in row 2 it raises on social's post while direct's succeeds
+    mock_post = mocker.patch("briefing.post_to_slack", side_effect=slack_side_effect)
+
+    body, headers = build_proper_request(payload, "push", tenant.signing_secret)
+    response = test_client.post("/webhook", content=body, headers=headers)
+
+    # 202 means both formats were queued, but doesn't guarantee full task completion
+    assert response.status_code == 202
+    # call_count shows how far social got: 1 means it never reached Slack (row 1), 2 means it tried and failed (row 2)
+    assert mock_post.call_count == expected_slack_call_count
+    # prove direct ran after social’s failure and delivered its own brief to its own URL
+    mock_post.assert_called_with("direct brief", tenant.direct_webhook_url)
