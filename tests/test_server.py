@@ -5,6 +5,7 @@ import hashlib
 from payload_parser import parse_push_event
 import pytest
 
+
 # Eligibility status return values per format (built by resolve_status in server.py)
 QUEUED = {"status": "queued"}
 SKIPPED_NOT_CONFIGURED = {"status": "skipped", "reason": "not_configured"}
@@ -14,10 +15,9 @@ SKIPPED_NON_DEFAULT_BRANCH = {"status": "skipped", "reason": "non_default_branch
 DEFAULT_BRANCH_REF = "refs/heads/main"
 FEATURE_BRANCH_REF = "refs/heads/feature-x"
 
+
 # helper function to build a properly signed request for every test
 # mimics what GitHub would send: body bytes & signed headers (the test does the posting using test_client fixture)
-
-
 def build_proper_request(payload, event_type, signing_secret):
     body = json.dumps(payload).encode()     # serialize the sample payload to bytes (to be signed and sent)
 
@@ -72,6 +72,8 @@ def test_unknown_sender_returns_404(test_client, load_sample_payload):
     assert response.json() == {"detail": "Error: User not found"}   # confirms that MY tenant lookup line produced this 404
 
 
+# Auth
+
 # Missing header test: ensure a request with a missing GitHub signature is rejected with a 401
 def test_missing_header_returns_401(make_tenant, test_client, load_sample_payload, mocker):
     tenant = make_tenant()
@@ -107,6 +109,36 @@ def test_bad_signature_returns_401(make_tenant, test_client, load_sample_payload
     mock_social.assert_not_called()
     mock_direct.assert_not_called()
 
+
+# Event type retrieval and filters
+
+# Push event filter tests:
+# tag/branch deletion and a merged PR duplicate return 200 (ignored, nothing queued)
+@pytest.mark.parametrize(
+    "payload_file, modifications, expected_reason",
+    [
+        pytest.param("push_default_branch.json", {"deleted": True}, "branch/tag deletion", id="deletion_push"),
+        pytest.param("push_webflow_merge.json", {}, "merged PR duplicate", id="duplicate_push")
+    ]
+)
+def test_push_ignored(payload_file, modifications, expected_reason, load_sample_payload, make_tenant, test_client, mocker):
+    tenant = make_tenant()
+    payload = load_sample_payload(payload_file)
+    payload.update(modifications)  # .update merges the row’s dict into the payload, adding or overwriting those keys
+    mock_social = mocker.patch("server.generate_and_post_social")
+    mock_direct = mocker.patch("server.generate_and_post_direct")
+    body, headers = build_proper_request(payload, "push", tenant.signing_secret)
+
+    response = test_client.post("/webhook", content=body, headers=headers)
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ignored", "reason": expected_reason}
+
+    mock_social.assert_not_called()
+    mock_direct.assert_not_called()
+
+
+# Eligibility
 
 # Skipped formats test: each tenant shape + branch combo reports the right return status per format, and queues only eligible formats
 @pytest.mark.parametrize(

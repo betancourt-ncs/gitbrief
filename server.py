@@ -47,20 +47,22 @@ def github_endpoint(request: Request, background_tasks: BackgroundTasks, respons
     logger.info(
         f"Webhook received - event: {request.headers.get('X-GitHub-Event')} | delivery_id={delivery_id}")
 
-    # Loading payload body as bytes
+    # Load payload body as bytes
     try:
         payload = json.loads(body)
+    # check for invalid JSON formatting
     except json.JSONDecodeError as e:
         logger.exception(
             f"Malformed, invalid, or corrupted JSON payload | delivery_id={delivery_id}")
         raise HTTPException(status_code=400, detail="Error: Bad Request") from e
 
-    # Auth
+    # Check sender object (reject if missing)
     sender_id = payload.get("sender", {}).get("id", None)
     if sender_id is None:
         logger.error(f"Malformed payload: missing sender_id field | delivery_id={delivery_id}")
         raise HTTPException(status_code=400, detail="Error: Malformed payload")
 
+    # Tenant lookup
     tenant = get_tenant(db, sender_id)
     if not tenant:
         logger.warning(
@@ -70,6 +72,7 @@ def github_endpoint(request: Request, background_tasks: BackgroundTasks, respons
     logger.info(
         f"Tenant identified (sender_id='{sender_id}') | delivery_id={delivery_id} ; tenant_id={tenant.id}")
 
+    # Auth
     github_signature = request.headers.get("X-Hub-Signature-256")
     if not github_signature:
         logger.warning(
