@@ -138,6 +138,43 @@ def test_push_ignored(payload_file, modifications, expected_reason, load_sample_
     mock_direct.assert_not_called()
 
 
+# Pull Request filter tests:
+# only a closed and merged PR is queued; anything else returns 200 ignored
+@pytest.mark.parametrize(
+    "action, merged, expected_status_code, expected_return",
+    [
+        # closed and merged (accepted and queued):
+        pytest.param("closed", True, 202, {"social_status": QUEUED, "direct_status": QUEUED}, id="closed_and_merged"),
+
+        # closed, not merged (code changes rejected, abandoned, superseded, etc):
+        pytest.param("closed", False, 200, {"status": "ignored", "reason": "PR not closed and merged"}, id="closed_not_merged"),
+
+        # edited after merge:
+        pytest.param("edited", True, 200, {"status": "ignored", "reason": "PR not closed and merged"}, id="merged_not_closed"),
+    ]
+)
+def test_pr_filter(action, merged, expected_status_code, expected_return, load_sample_payload, make_tenant, test_client, mocker):
+    tenant = make_tenant()  # no args, so both webhooks are configured
+    payload = load_sample_payload("pr_merged.json")
+    payload["action"] = action
+    payload["pull_request"]["merged"] = merged
+    mock_social = mocker.patch("server.generate_and_post_social")
+    mock_direct = mocker.patch("server.generate_and_post_direct")
+    body, headers = build_proper_request(payload, "pull_request", tenant.signing_secret)
+
+    response = test_client.post("/webhook", content=body, headers=headers)
+
+    assert response.status_code == expected_status_code
+    assert response.json() == expected_return
+
+    if expected_status_code == 202:
+        mock_social.assert_called_once()
+        mock_direct.assert_called_once()
+    else:
+        mock_social.assert_not_called()
+        mock_direct.assert_not_called()
+
+
 # Eligibility
 
 # Skipped formats test: each tenant shape + branch combo reports the right return status per format, and queues only eligible formats
