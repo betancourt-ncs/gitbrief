@@ -153,7 +153,7 @@ def test_push_ignored(payload_file, modifications, expected_reason, load_sample_
         pytest.param("edited", True, 200, {"status": "ignored", "reason": "PR not closed and merged"}, id="merged_not_closed"),
     ]
 )
-def test_pr_filter(action, merged, expected_status_code, expected_return, load_sample_payload, make_tenant, test_client, mocker):
+def test_pr_filters(action, merged, expected_status_code, expected_return, load_sample_payload, make_tenant, test_client, mocker):
     tenant = make_tenant()  # no args, so both webhooks are configured
     payload = load_sample_payload("pr_merged.json")
     payload["action"] = action
@@ -161,6 +161,46 @@ def test_pr_filter(action, merged, expected_status_code, expected_return, load_s
     mock_social = mocker.patch("server.generate_and_post_social")
     mock_direct = mocker.patch("server.generate_and_post_direct")
     body, headers = build_proper_request(payload, "pull_request", tenant.signing_secret)
+
+    response = test_client.post("/webhook", content=body, headers=headers)
+
+    assert response.status_code == expected_status_code
+    assert response.json() == expected_return
+
+    if expected_status_code == 202:
+        mock_social.assert_called_once()
+        mock_direct.assert_called_once()
+    else:
+        mock_social.assert_not_called()
+        mock_direct.assert_not_called()
+
+
+# Release event filter tests:
+# only a stable release going live, or a prerelease being published, is queued; anything else returns 200 ignored
+@pytest.mark.parametrize(
+    "action, prerelease, expected_status_code, expected_return",
+    [
+        # stable release goes live (published directly or promoted from a prerelease): accepted
+        pytest.param("released", False, 202, {"social_status": QUEUED, "direct_status": QUEUED}, id="live_release"),
+
+        # prerelease made public/visible: accepted
+        pytest.param("published", True, 202, {"social_status": QUEUED, "direct_status": QUEUED}, id="live_pre-release"),
+
+        # GitHub's double-fire: the "published" that accompanies a stable "released" (would duplicate the brief): ignored
+        pytest.param("published", False, 200, {"status": "ignored", "reason": "release not live and stable"}, id="duplicate_release"),
+
+        # prerelease edited (e.g. notes changed) is not a publish: ignored
+        pytest.param("edited", True, 200, {"status": "ignored", "reason": "release not live and stable"}, id="edited_pre-release"),
+    ]
+)
+def test_release_filters(action, prerelease, expected_status_code, expected_return, load_sample_payload, make_tenant, test_client, mocker):
+    tenant = make_tenant()
+    payload = load_sample_payload("release_published.json")
+    payload["action"] = action
+    payload["release"]["prerelease"] = prerelease
+    mock_social = mocker.patch("server.generate_and_post_social")
+    mock_direct = mocker.patch("server.generate_and_post_direct")
+    body, headers = build_proper_request(payload, "release", tenant.signing_secret)
 
     response = test_client.post("/webhook", content=body, headers=headers)
 
