@@ -235,6 +235,27 @@ def test_unhandled_event(load_sample_payload, make_tenant, test_client, mocker):
     mock_direct.assert_not_called()
 
 
+# Unexpected GitHub payload structure test:
+# a KeyError during parsing returns 500 with an ‘Unexpected payload shape’ detail
+def test_unexpected_structure(load_sample_payload, make_tenant, test_client, mocker):
+    tenant = make_tenant()
+    payload = load_sample_payload("pr_merged.json")
+    del payload["pull_request"]["body"]   # key expected for parsing
+    mock_social = mocker.patch("server.generate_and_post_social")
+    mock_direct = mocker.patch("server.generate_and_post_direct")
+    body, headers = build_proper_request(payload, "pull_request", tenant.signing_secret)
+
+    response = test_client.post("/webhook", content=body, headers=headers)
+
+    # raising 500 bc GitHub has already been verified atp, so the payload & client are legitimate
+    # 500 signals that my server failed on a legitimate request (Github changed payload shape(s), my parser has a bug, etc)
+    assert response.status_code == 500
+    assert response.json() == {"detail": "Error: Unexpected payload shape"}
+
+    mock_social.assert_not_called()
+    mock_direct.assert_not_called()
+
+
 # Eligibility
 
 # Skipped formats test: each tenant shape + branch combo reports the right return status per format, and queues only eligible formats
