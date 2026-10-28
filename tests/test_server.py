@@ -215,6 +215,26 @@ def test_release_filters(action, prerelease, expected_status_code, expected_retu
         mock_direct.assert_not_called()
 
 
+# Unhandled/unknown event test:
+# server responds with 200 ignored if the event type is not handled by Gitbrief
+def test_unhandled_event(load_sample_payload, make_tenant, test_client, mocker):
+    tenant = make_tenant()
+    payload = load_sample_payload("push_default_branch.json")
+    mock_social = mocker.patch("server.generate_and_post_social")
+    mock_direct = mocker.patch("server.generate_and_post_direct")
+
+    # passing a 'ping' event here attaches it straight to the "X-GitHub-Event" read in the headers
+    body, headers = build_proper_request(payload, "ping", tenant.signing_secret)
+
+    response = test_client.post("/webhook", content=body, headers=headers)
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ignored", "reason": "event type not handled by gitbrief"}
+
+    mock_social.assert_not_called()
+    mock_direct.assert_not_called()
+
+
 # Eligibility
 
 # Skipped formats test: each tenant shape + branch combo reports the right return status per format, and queues only eligible formats
