@@ -320,7 +320,7 @@ def test_valid_sender_returns_202(make_tenant, test_client, load_sample_payload,
     response = test_client.post("/webhook", content=body, headers=headers)
 
     assert response.status_code == 202
-    assert response.json() == {"social_status": {"status": "queued"}, "direct_status": {"status": "queued"}}
+    assert response.json() == {"social_status": QUEUED, "direct_status": QUEUED}
 
     mock_social.assert_called_once_with(parsed_payload, tenant.social_webhook_url, "test-delivery-id", tenant.id)
     mock_direct.assert_called_once_with(parsed_payload, tenant.direct_webhook_url, "test-delivery-id", tenant.id)
