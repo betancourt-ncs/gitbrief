@@ -1,13 +1,6 @@
 .venv
 __pycache__
 .env
-sample_push_payload.json
-webhook_test.py
-slack_test.py
-sample_pr_payload.json
-sample_release_payload.json
-briefing_test.py
-sample_duplicate_pr_push.txt
 .pytest_cache/
 *.db
 .DS_Store

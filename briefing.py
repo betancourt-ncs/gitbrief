@@ -11,8 +11,8 @@ logger = logging.getLogger(__name__)
 def generate_and_post_social(parsed_data: dict, slack_social_url: str, delivery_id: str | None, tenant_id: int):
     try:
         brief = generate_social_brief(parsed_data)
-    except Exception:
-        # logs the actual type and full traceback
+    except Exception:   # pylint: disable=broad-exception-caught
+        # logs the actual type and full traceback, so it doesn't stop direct
         logger.exception(
             f"Social brief generation failed | delivery_id={delivery_id} ; tenant_id={tenant_id}")
     else:
@@ -42,7 +42,7 @@ def generate_and_post_social(parsed_data: dict, slack_social_url: str, delivery_
 def generate_and_post_direct(parsed_data: dict, slack_direct_url: str, delivery_id: str | None, tenant_id: int):
     try:
         brief = generate_direct_brief(parsed_data)
-    except Exception:
+    except Exception:   # pylint: disable=broad-exception-caught
         logger.exception(
             f"Direct brief generation failed | delivery_id={delivery_id} ; tenant_id={tenant_id}")
     else:

@@ -1,13 +1,13 @@
-from fastapi import FastAPI, Request, Depends, HTTPException, BackgroundTasks, Response
 import json
+import logging
+from fastapi import FastAPI, Request, Depends, HTTPException, BackgroundTasks, Response
+from sqlalchemy.orm import Session
 from payload_parser import parse_push_event, parse_pr_event, parse_release_event
 from db.base import Base, engine, get_db
-import db.models  # pylint: disable=unused-import
+from db import models  # pylint: disable=unused-import
 from db.crud import get_tenant
-from sqlalchemy.orm import Session
 from auth import verify_signature
 from filters import is_social_eligible, is_direct_eligible
-import logging
 from briefing import generate_and_post_social, generate_and_post_direct
 
 logging.basicConfig(
@@ -41,7 +41,13 @@ def resolve_status(eligible: bool, skipped_reason: str | None) -> dict:
 
 
 @app.post("/webhook", status_code=202)
-def github_endpoint(request: Request, background_tasks: BackgroundTasks, response: Response, body: bytes = Depends(get_payload_bytes), db: Session = Depends(get_db)):
+def github_endpoint(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    response: Response,
+    body: bytes = Depends(get_payload_bytes),
+    db: Session = Depends(get_db),
+):
 
     delivery_id = request.headers.get("X-GitHub-Delivery")
     logger.info(
@@ -139,7 +145,8 @@ def github_endpoint(request: Request, background_tasks: BackgroundTasks, respons
             # Guarding against drafts, duplicate briefs when published, and other actions, while allowing pre-release promotions to stable releases:
             if not (action == "released" or (is_prerelease and action == "published")):
                 logger.debug(
-                    f"Event ignored: Release action='{action}', prerelease={is_prerelease} (not live and stable) | delivery_id={delivery_id} ; tenant_id={tenant.id}")
+                    f"""Event ignored: Release action='{action}', prerelease={is_prerelease} (not live and stable)
+                    | delivery_id={delivery_id} ; tenant_id={tenant.id}""")
                 response.status_code = 200
                 return {"status": "ignored", "reason": "release not live and stable"}
 

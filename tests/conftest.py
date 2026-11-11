@@ -1,3 +1,4 @@
+# pylint: disable=redefined-outer-name, import-outside-toplevel
 import os
 from pathlib import Path
 import json
@@ -18,7 +19,6 @@ TEST_SIGNING_SECRET = "test-signing-secret"
 # Hook to apply these variables automatically to every test (runs once before test collection)
 def pytest_configure():
     os.environ["OPENAI_API_KEY"] = "test-key-not-real"
-    os.environ["SLACK_WEBHOOK_URL"] = "fake-slack-url"
     os.environ["DATABASE_URL"] = "sqlite://"
 
 
@@ -26,7 +26,7 @@ def pytest_configure():
 @pytest.fixture
 def load_sample_payload():
     def load_filename(filename):
-        with open(PAYLOADS_DIR / filename) as f:
+        with open(PAYLOADS_DIR / filename, encoding="utf-8") as f:
             return json.load(f)
     return load_filename
 
@@ -99,7 +99,7 @@ def test_client(db_session):
     #   Not imported at the top of the file bc db.base reads the real DATABASE_URL and builds its engine at import time,
     #   so it must load after pytest_configure sets the fake value
     #   otherwise: an engine pointed at the real gitbrief.db locally (from db.base), and a crash in CI where there's no .env
-    #   import db.models: registers the Tenant(Base) model on import, so create_all builds its table (noqa F401)
+    #   import db.models: registers the Tenant(Base) model on import, so create_all builds its table
 
     # create_engine() args:
     #   sqlite:// : no path after indicates a database stored in RAM. SQLite treats a missing path as its special :memory: database

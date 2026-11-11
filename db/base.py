@@ -11,7 +11,7 @@ if not db_url:
 engine = create_engine(db_url)
 
 # Starting a session
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)    # pylint: disable=invalid-name
 
 
 # Handing session to a route, guarantees cleanup
