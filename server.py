@@ -40,7 +40,7 @@ def resolve_status(eligible: bool, skipped_reason: str | None) -> dict:
     return {"status": "skipped", "reason": skipped_reason}
 
 
-@app.post("/webhook")
+@app.post("/webhook", status_code=202)
 def github_endpoint(request: Request, background_tasks: BackgroundTasks, response: Response, body: bytes = Depends(get_payload_bytes), db: Session = Depends(get_db)):
 
     delivery_id = request.headers.get("X-GitHub-Delivery")
