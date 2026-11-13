@@ -1,0 +1,10 @@
+[MESSAGES CONTROL]
+disable =
+    #blue
+    missing-module-docstring,
+    missing-class-docstring,
+    missing-function-docstring,
+
+    #yellow
+    # Logs are mostly error/info level with simple values; lazy formatting gains nothing here
+    logging-fstring-interpolation
